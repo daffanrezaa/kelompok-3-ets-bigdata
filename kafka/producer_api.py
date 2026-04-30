@@ -7,10 +7,18 @@ import json
 import time
 import os
 import logging
+import requests
 from datetime import datetime, timedelta
 from kafka import KafkaProducer
-import requests
-from dotenv import load_dotenv
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+import urllib.request
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(*args, **kwargs):
+        return False
 
 # Load environment variables dari .env
 load_dotenv()
@@ -21,6 +29,7 @@ KAFKA_TOPIC = 'github-api'
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')  # Optional, tapi disarankan
 POLLING_INTERVAL = 30 * 60  # 30 menit dalam detik
 REPOS_PER_PAGE = 30
+
 
 # Setup logging
 logging.basicConfig(
