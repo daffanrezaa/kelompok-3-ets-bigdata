@@ -12,7 +12,7 @@ from kafka import KafkaProducer
 import feedparser
 
 # === KONFIGURASI ===
-KAFKA_BOOTSTRAP_SERVERS = ['localhost:9092']
+KAFKA_BOOTSTRAP_SERVERS = ['127.0.0.1:9092']
 KAFKA_TOPIC = 'github-rss'
 RSS_URLS = [
     'https://techcrunch.com/feed/',
