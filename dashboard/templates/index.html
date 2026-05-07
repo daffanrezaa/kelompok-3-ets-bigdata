@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitTrend: Open Source Tracker</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // Mengaktifkan Dark Mode berbasis class
+        }
+    </script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Scrollbar tersembunyi ala Twitter tapi tetap bisa discroll */
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Custom Scrollbar untuk panel kanan */
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark .custom-scroll::-webkit-scrollbar-thumb { background: #334155; }
+    </style>
+
+    <!-- Script cegah flash putih saat awal load -->
+    <script>
+        if (localStorage.theme === 'light') {
+            document.documentElement.classList.remove('dark')
+        } else {
+            document.documentElement.classList.add('dark')
+        }
+    </script>
+</head>
+
+<body class="bg-slate-50 dark:bg-[#020617] text-slate-800 dark:text-slate-200 selection:bg-indigo-500/30 transition-colors duration-300">
+
+    <div class="max-w-7xl mx-auto flex justify-center min-h-screen">
+
+        <!-- ================= KOLOM KIRI: NAVBAR (25%) ================= -->
+        <header class="w-20 lg:w-1/4 shrink-0 flex flex-col justify-between sticky top-0 h-screen py-6 px-2 lg:px-6 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] transition-colors duration-300 z-20">
+            <div class="space-y-6">
+                <!-- Logo -->
+                <a href="#" class="flex items-center gap-4 px-3 py-2 text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-900 rounded-full w-fit transition-colors">
+                    <div class="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.4)] shrink-0">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                    <span class="text-2xl font-bold tracking-tight hidden lg:block">GitTrend</span>
+                </a>
+
+                <!-- Navigasi -->
+                <nav class="space-y-2 mt-4">
+                    <button onclick="switchTab('news')" id="nav-news" class="nav-btn w-full flex items-center gap-4 px-4 py-3 text-lg font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900 rounded-full transition-colors">
+                        <svg class="w-7 h-7 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+                        <span class="hidden lg:block">Tech News</span>
+                    </button>
+                    
+                    <button onclick="switchTab('github')" id="nav-github" class="nav-btn w-full flex items-center gap-4 px-4 py-3 text-lg font-medium text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-900 rounded-full transition-colors">
+                        <svg class="w-7 h-7 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path></svg>
+                        <span class="hidden lg:block">GitHub Trends</span>
+                    </button>
+                    
+                    <button onclick="switchTab('topics')" id="nav-topics" class="nav-btn w-full flex items-center gap-4 px-4 py-3 text-lg font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900 rounded-full transition-colors">
+                        <svg class="w-7 h-7 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path></svg>
+                        <span class="hidden lg:block">Explore Topics</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Footer Kiri & Dark Mode Toggle -->
+            <div class="px-4 pb-4">
+                <button onclick="toggleTheme()" class="mb-6 flex items-center justify-center lg:justify-start gap-3 w-full p-3 rounded-full hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors">
+                    <!-- Icon Sun (Muncul saat Dark Mode) -->
+                    <svg class="hidden dark:block w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    <!-- Icon Moon (Muncul saat Light Mode) -->
+                    <svg class="block dark:hidden w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                    
+                    <!-- Wrapper Teks anti-bentrok -->
+                    <div class="hidden lg:block font-medium">
+                        <span class="dark:hidden">Dark Mode</span>
+                        <span class="hidden dark:inline">Light Mode</span>
+                    </div>
+                </button>
+                <div class="hidden lg:block text-xs font-mono text-slate-500 dark:text-slate-600">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Auto-Sync
+                    </div>
+                    Sync: <span id="sys-time">Waiting...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ================= KOLOM TENGAH: MAIN FEED (50%) ================= -->
+        <main class="w-full lg:w-2/4 min-h-screen border-r border-slate-200 dark:border-slate-800 flex flex-col relative hide-scroll bg-white dark:bg-[#020617] transition-colors duration-300">
+            
+            <!-- HEADER TENGAH (Sticky) -->
+            <div class="sticky top-0 z-10 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 transition-colors duration-300">
+                <h2 id="tab-title" class="text-xl font-bold text-slate-900 dark:text-white">GitHub Trends</h2>
+                
+                <!-- Search & Language Filter Container -->
+                <div id="search-container" class="mt-3 flex gap-2">
+                    <!-- Search Input -->
+                    <div class="relative flex-1">
+                        <svg class="w-5 h-5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        <input type="text" id="searchInput" onkeyup="filterGithub()" placeholder="Search repo, topics..." class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full py-2 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors">
+                    </div>
+                    <!-- Language Dropdown Filter -->
+                    <select id="langFilter" onchange="filterGithub()" class="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full px-3 py-2 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer transition-colors max-w-[120px]">
+                        <option value="All">All Lang</option>
+                        <!-- Options injected by JS -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- KONTEN FEED -->
+            <div id="feed-content" class="flex-1 pb-20">
+                <div class="p-8 text-center text-slate-500">
+                    <svg class="w-8 h-8 animate-spin mx-auto mb-4 text-indigo-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Fetching latest stream...
+                </div>
+            </div>
+
+        </main>
+
+        <!-- ================= KOLOM KANAN: ANALYTICS (25%) ================= -->
+        <aside class="hidden lg:flex w-1/4 shrink-0 flex-col sticky top-0 h-screen py-4 px-6 gap-6 custom-scroll overflow-y-auto bg-slate-50 dark:bg-[#020617] transition-colors duration-300">
+            
+            <!-- Widget 1: Language Trends Chart -->
+            <div class="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm transition-colors duration-300">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4 tracking-wide">Top Languages</h3>
+                <div class="relative h-48 w-full min-h-0">
+                    <canvas id="languageChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Widget 2: Trending Leaderboard -->
+            <div class="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col shadow-sm transition-colors duration-300">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4 tracking-wide">Spark Top Repos</h3>
+                <div id="spark-leaderboard" class="space-y-3 flex-1">
+                    <!-- Leaderboard di-inject via JS -->
+                </div>
+            </div>
+            
+            <!-- Footer Links -->
+            <div class="text-xs text-slate-500 dark:text-slate-600 space-x-2">
+                <a href="#" class="hover:underline">Terms</a>
+                <a href="#" class="hover:underline">Privacy</a>
+                <p class="mt-2">&copy; 2026 GitTrend Engine.</p>
+            </div>
+            
+        </aside>
+
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // --- VARIABLES ---
+        let currentTab = 'github';
+        let liveApiData = [];
+        let liveRssData = [];
+        let sparkData = {};
+        
+        let langChartInstance = null;
+
+        // --- THEME & DARK MODE LOGIC ---
+        function toggleTheme() {
+            const html = document.documentElement;
+            html.classList.toggle('dark');
+            const isDark = html.classList.contains('dark');
+            localStorage.theme = isDark ? 'dark' : 'light';
+            updateChartTheme(isDark);
+        }
+
+        function updateChartTheme(isDark) {
+            Chart.defaults.color = isDark ? '#64748b' : '#64748b'; // Text color
+            Chart.defaults.borderColor = isDark ? '#1e293b' : '#e2e8f0'; // Grid border
+            if (langChartInstance) langChartInstance.update();
+        }
+
+        // Initialize Chart theme on load
+        updateChartTheme(document.documentElement.classList.contains('dark'));
+
+        // --- FETCH DATA ---
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+                
+                sparkData = data.spark_data || {};
+                
+                liveApiData = (data.live_api || []).reverse().slice(0, 30);
+                liveRssData = (data.live_rss || []).reverse().slice(0, 30);
+
+                if(sparkData.metadata) {
+                    document.getElementById('sys-time').innerText = sparkData.metadata.generated_at.split('T')[1].split('.')[0];
+                }
+
+                populateLanguageFilter();
+                renderRightSidebar();
+                renderCurrentTab();
+
+            } catch (error) {
+                console.error("Gagal mengambil data:", error);
+            }
+        }
+
+        // --- POPULATE LANGUAGE DROPDOWN ---
+        function populateLanguageFilter() {
+            const select = document.getElementById('langFilter');
+            const currentSelection = select.value;
+            
+            // Dapatkan bahasa unik dari liveApiData
+            const langs = new Set();
+            liveApiData.forEach(repo => {
+                if(repo.language) langs.add(repo.language);
+            });
+            
+            let optionsHtml = '<option value="All">All Lang</option>';
+            Array.from(langs).sort().forEach(lang => {
+                optionsHtml += `<option value="${lang}">${lang}</option>`;
+            });
+            
+            select.innerHTML = optionsHtml;
+            
+            // Pertahankan pilihan sebelumnya jika masih ada di list
+            if (langs.has(currentSelection)) {
+                select.value = currentSelection;
+            }
+        }
+
+        // --- TAB MANAGEMENT ---
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-slate-900', 'dark:text-white', 'bg-slate-100', 'dark:bg-slate-900');
+                btn.classList.add('text-slate-600', 'dark:text-slate-400');
+            });
+            
+            const activeBtn = document.getElementById(`nav-${tabName}`);
+            activeBtn.classList.remove('text-slate-600', 'dark:text-slate-400');
+            activeBtn.classList.add('text-slate-900', 'dark:text-white', 'bg-slate-100', 'dark:bg-slate-900');
+
+            const titles = { 'news': 'Essential Tech News', 'github': 'GitHub Trends', 'topics': 'Explore Topics' };
+            document.getElementById('tab-title').innerText = titles[tabName];
+            
+            // Tampilkan Search Bar & Dropdown hanya di GitHub Trends
+            document.getElementById('search-container').style.display = (tabName === 'github') ? 'flex' : 'none';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('langFilter').value = 'All';
+
+            renderCurrentTab();
+        }
+
+        function renderCurrentTab() {
+            if (currentTab === 'github') renderGithub();
+            else if (currentTab === 'news') renderNews();
+            else if (currentTab === 'topics') renderTopics();
+        }
+
+        // --- 1. RENDER GITHUB (TWITTER-LIKE CARDS) ---
+        function renderGithub() {
+            const container = document.getElementById('feed-content');
+            container.innerHTML = '';
+
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const selectedLang = document.getElementById('langFilter').value;
+
+            // Filter ganda: berdasarkan Teks Search DAN Dropdown Bahasa
+            const filteredData = liveApiData.filter(repo => {
+                const rName = (repo.full_name || '').toLowerCase();
+                const rLangOriginal = repo.language || 'Unknown';
+                const rLang = rLangOriginal.toLowerCase();
+                const rDesc = (repo.description || '').toLowerCase();
+                const rTopics = (repo.topics || []).join(' ').toLowerCase();
+                
+                const matchesSearch = rName.includes(term) || rLang.includes(term) || rDesc.includes(term) || rTopics.includes(term);
+                const matchesLang = selectedLang === 'All' || rLangOriginal === selectedLang;
+                
+                return matchesSearch && matchesLang;
+            });
+
+            if (filteredData.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-slate-500">No repositories match your filter.</div>';
+                return;
+            }
+
+            filteredData.forEach(repo => {
+                const updatedObj = new Date(repo.pushed_at || repo.created_at);
+                const timeStr = isNaN(updatedObj) ? '' : updatedObj.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+                
+                let topicsHtml = '';
+                (repo.topics || []).slice(0, 5).forEach(t => {
+                    topicsHtml += `<span class="inline-block text-[11px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded-md mr-1 mb-1 hover:bg-indigo-200 dark:hover:bg-indigo-500/20 cursor-pointer transition-colors" onclick="event.stopPropagation(); document.getElementById('searchInput').value='${t}'; renderGithub();">#${t}</span>`;
+                });
+
+                const lang = repo.language || 'Unknown';
+                const langColor = lang === 'Unknown' ? 'bg-slate-300 dark:bg-slate-500' : 'bg-yellow-500 dark:bg-yellow-400';
+
+                container.innerHTML += `
+                    <article class="p-4 border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors flex gap-4 cursor-pointer" onclick="window.open('${repo.html_url}', '_blank')">
+                        <div class="shrink-0">
+                            <img src="https://github.com/${repo.owner}.png?size=48" onerror="this.src='https://ui-avatars.com/api/?name=${repo.owner}&background=random'" alt="${repo.owner}" class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
+                        </div>
+                        
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-start">
+                                <div class="truncate">
+                                    <span class="font-bold text-slate-900 dark:text-slate-200 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors">${repo.owner}</span>
+                                    <span class="text-slate-500 ml-1">/${repo.full_name.split('/')[1] || repo.full_name}</span>
+                                </div>
+                                <span class="text-xs text-slate-400 dark:text-slate-500 shrink-0 ml-2">${timeStr}</span>
+                            </div>
+                            
+                            <p class="text-sm text-slate-700 dark:text-slate-300 mt-1 mb-2.5 leading-relaxed">${repo.description || 'No description provided.'}</p>
+                            
+                            <div class="mb-3">${topicsHtml}</div>
+                            
+                            <div class="flex items-center gap-5 text-xs font-mono text-slate-500">
+                                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full ${langColor}"></span> ${lang}</div>
+                                
+                                <div class="flex items-center gap-1.5 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg> 
+                                    ${(repo.stargazers_count||0).toLocaleString()}
+                                </div>
+                                
+                                <div class="flex items-center gap-1.5 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5 3.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm0 2.122a2.25 2.25 0 10-1.5 0v3.256a2.25 2.25 0 101.5 0V8.122A5.016 5.016 0 0111 3.75h.5v1.65a.75.75 0 001.28.53l2.25-2.25a.75.75 0 000-1.06l-2.25-2.25a.75.75 0 00-1.28.53v1.65H11A6.516 6.516 0 005 8.622v-3.25zM11 12.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"></path></svg> 
+                                    ${(repo.forks_count||0).toLocaleString()}
+                                </div>
+                                
+                                <div class="flex items-center gap-1.5 hover:text-red-500 dark:hover:text-red-400 transition-colors" title="Open Issues">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> 
+                                    ${repo.open_issues_count||0}
+                                </div>
+                                
+                                <div class="hidden sm:block truncate">${repo.license || ''}</div>
+                            </div>
+                        </div>
+                    </article>`;
+            });
+        }
+
+        // Panggil renderGithub langsung ketika di-trigger
+        function filterGithub() {
+            renderGithub();
+        }
+
+        // --- 2. RENDER NEWS (RSS FEED) ---
+        function renderNews() {
+            const container = document.getElementById('feed-content');
+            container.innerHTML = '';
+
+            if (liveRssData.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-slate-500">No news updates.</div>';
+                return;
+            }
+
+            liveRssData.forEach(news => {
+                let domainName = "NEWS";
+                try { domainName = new URL(news.link).hostname.replace('www.', ''); } catch(e) {}
+                
+                const dateObj = new Date(news.published);
+                const dateStr = isNaN(dateObj) ? '' : dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+
+                container.innerHTML += `
+                    <article class="p-5 border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors cursor-pointer" onclick="window.open('${news.link}', '_blank')">
+                        <div class="flex items-center gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-2.5">
+                            <img src="https://icon.horse/icon/${domainName}" onerror="this.style.display='none'" class="w-4 h-4 rounded">
+                            <span class="text-slate-700 dark:text-slate-300 font-bold">${domainName}</span>
+                            <span>&bull;</span>
+                            <span>${dateStr}</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-slate-200 leading-snug mb-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">${news.title || 'Untitled'}</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">${news.summary || ''}</p>
+                    </article>`;
+            });
+        }
+
+        // --- 3. RENDER TOPICS (Tag Cloud & List) ---
+        function renderTopics() {
+            const container = document.getElementById('feed-content');
+            
+            // Tag Cloud
+            let sparkWordsHtml = '<div class="flex flex-wrap gap-2.5 p-5">';
+            const words = sparkData.analysis_3_trending_words || [];
+            
+            if(words.length > 0) {
+                words.forEach(word => {
+                    let scale = 0.85 + (word.frequency / 35);
+                    if(scale > 1.5) scale = 1.5; 
+                    
+                    sparkWordsHtml += `
+                        <button onclick="switchTab('github'); document.getElementById('searchInput').value='${word.word}'; document.getElementById('langFilter').value='All'; filterGithub();" 
+                                class="inline-flex items-center px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-500/20 bg-white dark:bg-slate-900/80 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all shadow-sm"
+                                style="font-size: ${scale}rem;">
+                            <span class="font-medium tracking-tight">${word.word}</span>
+                            <span class="ml-1.5 text-slate-400 dark:text-slate-500 text-[0.7em] font-mono">(${word.frequency})</span>
+                        </button>`;
+                });
+            } else {
+                sparkWordsHtml += '<p class="text-slate-500 w-full text-center py-4">No trending keywords data.</p>';
+            }
+            sparkWordsHtml += '</div>';
+
+            // Popular Repo Topics (List)
+            let topicCounts = {};
+            liveApiData.forEach(repo => {
+                (repo.topics || []).forEach(t => {
+                    topicCounts[t] = (topicCounts[t] || 0) + 1;
+                });
+            });
+            let sortedTopics = Object.entries(topicCounts).sort((a,b) => b[1] - a[1]).slice(0, 20);
+            
+            let githubTopicsHtml = '';
+            if (sortedTopics.length > 0) {
+                sortedTopics.forEach(([t, count]) => {
+                    githubTopicsHtml += `
+                        <div class="py-3.5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-900/50 cursor-pointer px-5 transition-colors" 
+                             onclick="switchTab('github'); document.getElementById('searchInput').value='${t}'; document.getElementById('langFilter').value='All'; filterGithub();">
+                            <div>
+                                <p class="text-xs text-slate-500 mb-0.5 uppercase tracking-wide">Repository Topic</p>
+                                <p class="text-base font-bold text-slate-900 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">#${t}</p>
+                            </div>
+                            <span class="text-xs text-slate-500 font-mono">${count} repos</span>
+                        </div>`;
+                });
+            } else {
+                githubTopicsHtml = '<div class="p-5 text-slate-500 text-center">No repository topics gathered yet.</div>';
+            }
+
+            container.innerHTML = `
+                <div class="bg-white dark:bg-slate-950 min-h-full pb-10 transition-colors duration-300">
+                    <h3 class="px-5 py-4 font-bold text-lg border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900/30 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"></path></svg>
+                        Trending Keywords (Analytics)
+                    </h3>
+                    ${sparkWordsHtml}
+                    
+                    <div class="h-3 bg-slate-100 dark:bg-slate-900/50 border-y border-slate-200 dark:border-slate-800"></div>
+                    
+                    <h3 class="px-5 py-4 font-bold text-lg border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900/30 mt-2 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                        Popular Repo Topics
+                    </h3>
+                    ${githubTopicsHtml}
+                </div>`;
+        }
+
+        // --- 4. RENDER KANAN (CHART & STATS) ---
+        function renderRightSidebar() {
+            const langData = sparkData.analysis_1_language_distribution || [];
+            const langLabels = langData.map(item => item.language);
+            const langValues = langData.map(item => item.percentage);
+            
+            if(!langChartInstance) {
+                langChartInstance = new Chart(document.getElementById('languageChart').getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: langLabels.length ? langLabels : ['No Data'],
+                        datasets: [{ 
+                            data: langValues.length ? langValues : [100], 
+                            backgroundColor: langValues.length ? ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4'] : ['#94a3b8'], 
+                            borderWidth: 0 
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: {size: 11} } } }, cutout: '70%' }
+                });
+            } else {
+                langChartInstance.data.labels = langLabels.length ? langLabels : ['No Data'];
+                langChartInstance.data.datasets[0].data = langValues.length ? langValues : [100];
+                langChartInstance.update();
+            }
+
+            const rightList = document.getElementById('spark-leaderboard');
+            rightList.innerHTML = '';
+            const topRepos = (sparkData.analysis_2_top_repos || []).slice(0, 5); 
+            
+            topRepos.forEach(repo => {
+                rightList.innerHTML += `
+                    <div class="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors cursor-pointer border border-transparent hover:border-slate-300 dark:hover:border-slate-700/50" onclick="window.open('https://github.com/${repo.full_name}', '_blank')">
+                        <div class="flex flex-col overflow-hidden pr-2">
+                            <span class="text-sm font-bold text-slate-900 dark:text-slate-200 truncate hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">${repo.full_name.split('/')[1] || repo.full_name}</span>
+                            <span class="text-[10px] text-slate-500 font-mono mt-0.5">${repo.language || 'Mixed'}</span>
+                        </div>
+                        <span class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-yellow-600 dark:text-yellow-400 text-xs px-2 py-1.5 rounded font-mono shrink-0 flex items-center gap-1.5 shadow-sm transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                            ${repo.stargazers_count >= 1000 ? (repo.stargazers_count/1000).toFixed(1) + 'k' : repo.stargazers_count}
+                        </span>
+                    </div>`;
+            });
+        }
+
+        // --- INIT & INTERVAL ---
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDashboardData(); 
+            setInterval(fetchDashboardData, 30000); 
+        });
+    </script>
+</body>
+</html>
