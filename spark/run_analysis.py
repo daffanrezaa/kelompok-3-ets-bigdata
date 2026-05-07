@@ -145,9 +145,12 @@ def run_spark_analysis(use_hdfs=True):
 
     print("🔧 Inisialisasi SparkSession...")
 
+    # SESUAI KETENTUAN TUGAS
     spark = SparkSession.builder \
         .appName("GitTrend-Analysis") \
         .master("local[*]") \
+        .config("spark.hadoop.fs.defaultFS", "hdfs://namenode:8020") \
+        .config("spark.hadoop.dfs.client.use.datanode.hostname", "true") \
         .config("spark.driver.host", "127.0.0.1") \
         .config("spark.driver.bindAddress", "127.0.0.1") \
         .config("spark.pyspark.python", sys.executable) \
@@ -156,46 +159,35 @@ def run_spark_analysis(use_hdfs=True):
     spark.sparkContext.setLogLevel("WARN")
     print(f"   ✅ Spark {spark.version} ready")
 
-    # ── Load Data dari HDFS via docker exec ──
-    if use_hdfs:
-        print(f"\n📂 Membaca dari HDFS via docker exec...")
-        api_records = _load_from_hdfs("/data/github/api/")
-        rss_records = _load_from_hdfs("/data/github/rss/")
-        data_source = "HDFS"
-
-        if not api_records:
-            print("   ⚠️  HDFS kosong/gagal, fallback ke staging lokal...")
-            api_records = _load_json_dir(STAGING_API)
-            rss_records = _load_json_dir(STAGING_RSS)
-            data_source = "local_staging"
-    else:
-        print(f"\n📂 Membaca dari staging lokal...")
-        api_records = _load_json_dir(STAGING_API)
-        rss_records = _load_json_dir(STAGING_RSS)
-        data_source = "local_staging"
-
-    if not api_records:
-        print("❌ Tidak ada data API.")
+    # ── Load Data dari HDFS (Native Spark) ──
+    print("\n📂 Membaca data dari HDFS secara native (spark.read)...")
+    try:
+        # Sesuai ketentuan tugas (Baca file JSON dari HDFS langsung tanpa loop)
+        df_api = spark.read.option("multiLine", True).json("hdfs://namenode:8020/data/github/api/")
+        total_api = df_api.count()
+        
+        # Baca juga RSS
+        try:
+            df_rss = spark.read.option("multiLine", True).json("hdfs://namenode:8020/data/github/rss/")
+            total_rss = df_rss.count()
+        except Exception:
+            df_rss = None
+            total_rss = 0
+            
+    except Exception as e:
+        print(f"❌ Gagal membaca HDFS secara native: {e}")
         spark.stop()
         return False
 
-    # Konversi ke Spark DataFrame
-    df_api = spark.createDataFrame(api_records)
-    df_rss = spark.createDataFrame(rss_records) if rss_records else None
-
-    total_api = df_api.count()
-    total_rss = df_rss.count() if df_rss else 0
-    print(f"   ✅ {total_api} API records, {total_rss} RSS records (source: {data_source})")
+    print(f"   ✅ {total_api} API records, {total_rss} RSS records (source: HDFS Native)")
 
     if total_api == 0:
         print("❌ Tidak ada data API. Jalankan producer + consumer dulu.")
         spark.stop()
         return False
 
-    # Register untuk Spark SQL
+    # Register untuk Spark SQL (Sesuai ketentuan)
     df_api.createOrReplaceTempView("repos")
-    if df_rss:
-        df_rss.createOrReplaceTempView("rss_articles")
 
     # ══════════════════════════════════════════════════════════
     # ANALISIS 1: Distribusi Bahasa Pemrograman (Spark SQL)
@@ -321,18 +313,19 @@ def run_spark_analysis(use_hdfs=True):
         json.dump(spark_results, f, indent=2, ensure_ascii=False)
     print(f"\n✅ Tersimpan: {OUTPUT_JSON}")
 
-    # ── Save ke HDFS (/data/github/hasil/) ──
+    # ── Save ke HDFS (/data/github/hasil/) (Native Spark) ──
     if use_hdfs:
         try:
-            # Simpan sebagai JSON ke HDFS
-            from pyspark.sql.types import StructType, StructField, StringType
-            result_rdd = spark.sparkContext.parallelize([json.dumps(spark_results)])
+            print("📥 Menyimpan hasil ke HDFS secara native (df.write)...")
+            from pyspark.sql.types import StringType
+            result_rdd = spark.sparkContext.parallelize([json.dumps(spark_results, ensure_ascii=False)])
             result_df = spark.read.json(result_rdd)
-            result_df.coalesce(1).write.mode("overwrite").json(HDFS_HASIL)
-            print(f"✅ Tersimpan ke HDFS: {HDFS_HASIL}")
+            # Sesuai ketentuan tugas
+            result_df.coalesce(1).write.mode("overwrite").json("hdfs://namenode:8020/data/github/hasil/")
+            print(f"✅ Tersimpan ke HDFS: hdfs://namenode:8020/data/github/hasil/")
         except Exception as e:
-            print(f"⚠️  Gagal simpan ke HDFS: {e}")
-            # Fallback: docker cp
+            print(f"⚠️  Gagal simpan ke HDFS secara native: {e}")
+            print("   (Mencoba fallback via docker cp...)")
             _upload_to_hdfs_docker()
     else:
         _upload_to_hdfs_docker()
@@ -453,11 +446,17 @@ def run_fallback_analysis():
 def run_once(use_local):
     """Jalankan analisis sekali.
     
-    PySpark di Windows + Docker Desktop crash karena socket timeout
-    (JVM worker tidak bisa konek ke driver). Langsung pakai fallback
-    yang tetap membaca dari HDFS via docker exec.
+    Mencoba menjalankan PySpark asli terlebih dahulu. Jika gagal (misal
+    karena error environment/Java/network), baru akan menggunakan fallback.
     """
-    return run_fallback_analysis()
+    try:
+        success = run_spark_analysis(use_hdfs=not use_local)
+        if success:
+            return True
+        return run_fallback_analysis()
+    except Exception as e:
+        print(f"\n⚠️ PySpark gagal dijalankan ({e}).\nBeralih ke fallback plain Python...")
+        return run_fallback_analysis()
 
 
 def main():
