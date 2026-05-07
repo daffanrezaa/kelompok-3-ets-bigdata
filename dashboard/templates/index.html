@@ -15,6 +15,7 @@
     
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -138,7 +139,7 @@
             
             <!-- Widget 1: Language Trends Chart -->
             <div class="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm transition-colors duration-300">
-                <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4 tracking-wide">Top Languages</h3>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4 tracking-wide">Most Used Languages</h3>
                 <div class="relative h-48 w-full min-h-0">
                     <canvas id="languageChart"></canvas>
                 </div>
@@ -146,7 +147,7 @@
 
             <!-- Widget 2: Trending Leaderboard -->
             <div class="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col shadow-sm transition-colors duration-300">
-                <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4 tracking-wide">Spark Top Repos</h3>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4 tracking-wide">Top Rated Repos This Week</h3>
                 <div id="spark-leaderboard" class="space-y-3 flex-1">
                     <!-- Leaderboard di-inject via JS -->
                 </div>
@@ -156,7 +157,7 @@
             <div class="text-xs text-slate-500 dark:text-slate-600 space-x-2">
                 <a href="#" class="hover:underline">Terms</a>
                 <a href="#" class="hover:underline">Privacy</a>
-                <p class="mt-2">&copy; 2026 GitTrend Engine.</p>
+                <p class="mt-2">&copy; GitTrend.</p>
             </div>
             
         </aside>
@@ -280,7 +281,7 @@
             // Filter ganda: berdasarkan Teks Search DAN Dropdown Bahasa
             const filteredData = liveApiData.filter(repo => {
                 const rName = (repo.full_name || '').toLowerCase();
-                const rLangOriginal = repo.language || 'Unknown';
+                const rLangOriginal = repo.language || 'Others';
                 const rLang = rLangOriginal.toLowerCase();
                 const rDesc = (repo.description || '').toLowerCase();
                 const rTopics = (repo.topics || []).join(' ').toLowerCase();
@@ -305,8 +306,8 @@
                     topicsHtml += `<span class="inline-block text-[11px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded-md mr-1 mb-1 hover:bg-indigo-200 dark:hover:bg-indigo-500/20 cursor-pointer transition-colors" onclick="event.stopPropagation(); document.getElementById('searchInput').value='${t}'; renderGithub();">#${t}</span>`;
                 });
 
-                const lang = repo.language || 'Unknown';
-                const langColor = lang === 'Unknown' ? 'bg-slate-300 dark:bg-slate-500' : 'bg-yellow-500 dark:bg-yellow-400';
+                const lang = repo.language || 'Others';
+                const langColor = lang === 'Others' ? 'bg-slate-300 dark:bg-slate-500' : 'bg-yellow-500 dark:bg-yellow-400';
 
                 container.innerHTML += `
                     <article class="p-4 border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors flex gap-4 cursor-pointer" onclick="window.open('${repo.html_url}', '_blank')">
@@ -461,7 +462,7 @@
         // --- 4. RENDER KANAN (CHART & STATS) ---
         function renderRightSidebar() {
             const langData = sparkData.analysis_1_language_distribution || [];
-            const langLabels = langData.map(item => item.language);
+            const langLabels = langData.map(item => item.language === 'Unknown' || !item.language ? 'Others' : item.language);
             const langValues = langData.map(item => item.percentage);
             
             if(!langChartInstance) {
@@ -472,7 +473,7 @@
                         datasets: [{ 
                             data: langValues.length ? langValues : [100], 
                             backgroundColor: langValues.length ? ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4'] : ['#94a3b8'], 
-                            borderWidth: 0 
+                            borderWidth: 0
                         }]
                     },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: {size: 11} } } }, cutout: '70%' }
