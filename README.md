@@ -3,7 +3,7 @@
 Big Data Pipeline end-to-end: **Kafka → HDFS → Spark → Flask Dashboard**
 
 ```
-GitHub API (1 menit)          TechCrunch RSS (2 menit)
+GitHub API (60 detik)         TechCrunch RSS (5 menit)
        │                              │
        ▼                              ▼
  producer_api.py               producer_rss.py
@@ -204,12 +204,13 @@ docker exec -it namenode hdfs dfs -du -h /data/github/
 docker exec -it namenode hdfs dfs -df -h /data/
 ```
 
-### 4c. Verifikasi File Lokal Dashboard & Staging
+### 4c. Verifikasi File Lokal Dashboard
 
 ```bash
 # Cek apakah file live data sudah ada
 dir dashboard\data\
 # Harus ada: live_api.json, live_rss.json
+```
 
 ---
 
@@ -227,25 +228,29 @@ jupyter notebook spark/analysis.ipynb
 - 3 analisis wajib: distribusi bahasa, top 10 repo, kata trending
 - Output: `dashboard/data/spark_results.json`
 
-### Opsi B: Runner Lokal (tanpa Spark, untuk demo cepat)
+### Opsi B: Runner PySpark via Script
 
-Jika Spark belum tersedia, gunakan `run_analysis.py` yang mereplikasi 3 analisis
-yang sama menggunakan plain Python.
-
-> **Tidak perlu copy manual.** Consumer (`consumer_to_hdfs.py`) secara otomatis
-> menulis setiap batch ke `tmp/spark_staging/api/` dan `tmp/spark_staging/rss/`
-> setiap kali flush (tiap 2 menit). `run_analysis.py` membaca folder itu langsung.
+`run_analysis.py` menjalankan analisis PySpark yang sama, membaca langsung dari HDFS.
+Jika PySpark gagal (misal di Windows), otomatis fallback ke plain Python.
 
 ```bash
-# Pastikan consumer sudah berjalan minimal 2 menit (agar ada data di staging)
-# lalu jalankan:
+# Jalankan sekali (baca dari HDFS)
 python spark/run_analysis.py
 
-# Atau mode watch — analisis diperbarui otomatis setiap 60 detik
+# Mode watch — analisis diperbarui otomatis setiap 60 detik
 python spark/run_analysis.py --watch 60
 ```
 
 Output: `dashboard/data/spark_results.json`
+
+### Opsi C: Docker Spark (Alternatif)
+
+Jika ingin menjalankan Spark di dalam Docker container:
+
+```bash
+docker compose -f docker-compose-spark.yml up -d
+docker exec spark-master spark-submit /opt/spark-apps/spark_analysis.py
+```
 
 ---
 
@@ -280,19 +285,23 @@ Buka browser: http://localhost:5000
 kelompok-3-ets-bigdata/
 ├── docker-compose-kafka.yml      # Kafka + Zookeeper
 ├── docker-compose-hadoop.yml     # Hadoop cluster (5 container)
+├── docker-compose-spark.yml      # Spark master + worker (alternatif)
 ├── hadoop.env                    # Konfigurasi Hadoop
+├── run.sh                        # Start semua services (Linux/Mac)
+├── stop.sh                       # Stop semua services (Linux/Mac)
 ├── .env                          # GitHub Token (tidak di-commit)
 ├── .gitignore
 ├── README.md
 │
 ├── kafka/
 │   ├── producer_api.py           # GitHub API → Kafka (interval: 60 detik)
-│   ├── producer_rss.py           # RSS Feed → Kafka (interval: 2 menit)
-│   └── consumer_to_hdfs.py       # Kafka → HDFS (WebHDFS) + file lokal
+│   ├── producer_rss.py           # RSS Feed → Kafka (interval: 5 menit)
+│   └── consumer_to_hdfs.py       # Kafka → HDFS + file lokal
 │
 ├── spark/
-│   ├── analysis.ipynb            # PySpark analysis (dengan HDFS)
-│   └── run_analysis.py           # Alternatif lokal tanpa Spark
+│   ├── analysis.ipynb            # PySpark analysis notebook (HDFS)
+│   ├── run_analysis.py           # PySpark runner (HDFS, dengan fallback)
+│   └── spark_analysis.py         # PySpark untuk Docker Spark (alternatif)
 │
 ├── dashboard/
 │   ├── app.py                    # Flask server
@@ -304,12 +313,6 @@ kelompok-3-ets-bigdata/
 │       ├── live_api.json
 │       ├── live_rss.json
 │       └── spark_results.json
-│
-└── tmp/                          # (auto-generated, gitignored)
-    ├── github_buffer/            # Buffer sementara consumer
-    └── spark_staging/            # Staging untuk run_analysis.py
-        ├── api/
-        └── rss/
 ```
 
 ---
@@ -321,7 +324,7 @@ kelompok-3-ets-bigdata/
 | 1 | Project Lead & Integrator | `docker-compose-*.yml`, `hadoop.env`, `README.md` |
 | 2 | Kafka Producer (API) | `kafka/producer_api.py` |
 | 3 | Kafka Producer (RSS) + Consumer | `kafka/producer_rss.py`, `kafka/consumer_to_hdfs.py` |
-| 4 | Spark Analysis | `spark/analysis.ipynb` |
+| 4 | Spark Analysis | `spark/analysis.ipynb`, `spark/run_analysis.py`, `spark/spark_analysis.py` |
 | 5 | Flask Dashboard | `dashboard/app.py`, `dashboard/templates/index.html` |
 
 ---

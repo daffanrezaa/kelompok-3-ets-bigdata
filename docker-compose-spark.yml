@@ -1,0 +1,33 @@
+services:
+  spark-master:
+    image: apache/spark-py:v3.5.3
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./spark:/opt/spark-apps
+      - ./dashboard/data:/opt/dashboard-data
+    command: /opt/spark/sbin/start-master.sh
+    user: root
+
+  spark-worker:
+    image: apache/spark-py:v3.5.3
+    container_name: spark-worker
+    environment:
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=2g
+    depends_on:
+      - spark-master
+    command: /opt/spark/sbin/start-worker.sh spark://spark-master:7077
+    user: root
+
+# Gabung ke network Hadoop agar bisa akses HDFS
+networks:
+  default:
+    name: kelompok-3-ets-bigdata_default
+    external: true
