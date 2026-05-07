@@ -27,7 +27,7 @@ load_dotenv()
 KAFKA_BOOTSTRAP_SERVERS = ['127.0.0.1:9092']
 KAFKA_TOPIC = 'github-api'
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')  # Optional, tapi disarankan
-POLLING_INTERVAL = 30 * 60  # 30 menit dalam detik
+POLLING_INTERVAL = 60  # 30 menit dalam detik
 REPOS_PER_PAGE = 30
 
 

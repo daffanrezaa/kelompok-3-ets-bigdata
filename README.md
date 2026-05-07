@@ -1,9 +1,9 @@
-# 🚀 GitTrend — Monitor Repositori Open Source Populer
+# GitTrend — Monitor Repositori Open Source Populer
 
 Big Data Pipeline end-to-end: **Kafka → HDFS → Spark → Flask Dashboard**
 
 ```
-GitHub API (30 menit)          TechCrunch RSS (5 menit)
+GitHub API (1 menit)          TechCrunch RSS (2 menit)
        │                              │
        ▼                              ▼
  producer_api.py               producer_rss.py
@@ -28,7 +28,7 @@ GitHub API (30 menit)          TechCrunch RSS (5 menit)
 
 ---
 
-## 📌 Prasyarat
+## Prasyarat
 
 | Tool             | Versi           |
 | ---------------- | --------------- |
@@ -38,15 +38,24 @@ GitHub API (30 menit)          TechCrunch RSS (5 menit)
 
 ---
 
-## ⚙️ Step 1 — Install Python Dependencies
+## Step 0 — Setup Awal
+### 0a. Buat Virtual Environment & Install Dependencies
 
 ```bash
+# Buat venv
+python -m venv venv
+
+# Aktifkan venv
+.\\venv\\Scripts\\activate          # Windows PowerShell / CMD
+# source venv/bin/activate          # macOS / Linux / Git Bash
+
+# Install semua dependencies
 pip install kafka-python feedparser hdfs flask flask-cors requests python-dotenv pyspark
 ```
 
 ---
 
-## 🔑 Step 2 — Setup GitHub Token (Opsional, Disarankan)
+## Step 1 — Setup GitHub Token (Opsional, Disarankan)
 
 Tanpa token, GitHub API rate limit = 10 request/jam. Dengan token = 30 request/jam.
 
@@ -60,9 +69,9 @@ GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
 
 ---
 
-## 🐳 Step 3 — Jalankan Docker Containers
+## Step 2 — Jalankan Docker Containers
 
-### 3a. Jalankan Kafka + Zookeeper
+### 2a. Jalankan Kafka + Zookeeper
 
 ```bash
 docker-compose -f docker-compose-kafka.yml up -d
@@ -74,7 +83,7 @@ docker ps
 # Harus muncul: zookeeper, kafka-broker
 ```
 
-### 3b. Jalankan Hadoop Cluster
+### 2b. Jalankan Hadoop Cluster
 
 ```bash
 docker-compose -f docker-compose-hadoop.yml up -d
@@ -88,7 +97,7 @@ docker ps
 
 Tunggu ~30 detik sampai namenode ready, lalu cek Web UI: http://localhost:9870
 
-### 3c. Buat Direktori HDFS
+### 2c. Buat Direktori HDFS
 
 ```bash
 docker exec -it namenode hdfs dfs -mkdir -p /data/github/api
@@ -104,30 +113,35 @@ docker exec -it namenode hdfs dfs -ls -R /data/
 
 ---
 
-## ▶️ Step 4 — Jalankan Pipeline (3 Terminal)
+## Step 3 — Jalankan Pipeline (3 Terminal)
 
-Buka **3 terminal terpisah**, semua masuk ke folder `kafka/`:
+Buka **3 terminal terpisah**, aktifkan venv di masing-masing, lalu masuk ke folder `kafka/`:
+
+```bash
+.\\venv\\Scripts\\activate    # aktifkan venv di setiap terminal
+cd kafka
+```
 
 ### Terminal 1 — Producer API (GitHub)
 
 ```bash
-cd kafka
 python producer_api.py
 ```
 
 Output yang diharapkan:
 ```
 GitHub API Producer dimulai
-Topic: github-api | Interval: 30 menit
-Berhasil fetch 30 repo. Rate limit remaining: 9
+Topic: github-api | Interval: 1 menit
+Berhasil fetch 30 repo. Rate limit remaining: 29
 Berhasil kirim 30/30 event ke topic 'github-api'
-Menunggu 30 menit sebelum polling berikutnya...
+Menunggu 1 menit sebelum polling berikutnya...
 ```
+
+> **Catatan Demo:** Interval saat ini diset **60 detik** agar data cepat masuk selama demo.
 
 ### Terminal 2 — Producer RSS (TechCrunch)
 
 ```bash
-cd kafka
 python producer_rss.py
 ```
 
@@ -142,7 +156,6 @@ Total 20 artikel baru dikirim ke 'github-rss'
 ### Terminal 3 — Consumer → HDFS
 
 ```bash
-cd kafka
 python consumer_to_hdfs.py
 ```
 
@@ -160,9 +173,9 @@ Flushed 20 events dari topic 'github-rss'
 
 ---
 
-## 🧪 Step 5 — Verifikasi Data
+## Step 4 — Verifikasi Data
 
-### 5a. Verifikasi Kafka Topics
+### 4a. Verifikasi Kafka Topics
 
 ```bash
 # List semua topic
@@ -175,7 +188,7 @@ docker exec -it kafka-broker kafka-console-consumer --topic github-api --from-be
 docker exec -it kafka-broker kafka-console-consumer --topic github-rss --from-beginning --bootstrap-server localhost:9092
 ```
 
-### 5b. Verifikasi Data di HDFS
+### 4b. Verifikasi Data di HDFS
 
 ```bash
 # List file di HDFS
@@ -183,29 +196,60 @@ docker exec -it namenode hdfs dfs -ls -R /data/github/
 
 # Baca isi salah satu file
 docker exec -it namenode hdfs dfs -cat /data/github/api/<nama-file>.json
+
+# Size per folder (api/, rss/, hasil/)
+docker exec -it namenode hdfs dfs -du -h /data/github/
+
+# Ringkasan kapasitas cluster (total, used, available)
+docker exec -it namenode hdfs dfs -df -h /data/
 ```
 
-### 5c. Verifikasi File Lokal Dashboard
+### 4c. Verifikasi File Lokal Dashboard & Staging
 
 ```bash
 # Cek apakah file live data sudah ada
 dir dashboard\data\
 # Harus ada: live_api.json, live_rss.json
-```
 
 ---
 
-## 📊 Step 6 — Spark Analysis
+## Step 5 — Spark Analysis
+
+### Opsi A: Notebook PySpark (dengan HDFS)
 
 Buka `spark/analysis.ipynb` di Jupyter Notebook atau Google Colab:
+
+```bash
+jupyter notebook spark/analysis.ipynb
+```
 
 - Membaca data dari HDFS
 - 3 analisis wajib: distribusi bahasa, top 10 repo, kata trending
 - Output: `dashboard/data/spark_results.json`
 
+### Opsi B: Runner Lokal (tanpa Spark, untuk demo cepat)
+
+Jika Spark belum tersedia, gunakan `run_analysis.py` yang mereplikasi 3 analisis
+yang sama menggunakan plain Python.
+
+> **Tidak perlu copy manual.** Consumer (`consumer_to_hdfs.py`) secara otomatis
+> menulis setiap batch ke `tmp/spark_staging/api/` dan `tmp/spark_staging/rss/`
+> setiap kali flush (tiap 2 menit). `run_analysis.py` membaca folder itu langsung.
+
+```bash
+# Pastikan consumer sudah berjalan minimal 2 menit (agar ada data di staging)
+# lalu jalankan:
+python spark/run_analysis.py
+
+# Atau mode watch — analisis diperbarui otomatis setiap 60 detik
+python spark/run_analysis.py --watch 60
+```
+
+Output: `dashboard/data/spark_results.json`
+
 ---
 
-## 🌐 Step 7 — Flask Dashboard
+## Step 6 — Flask Dashboard
 
 ```bash
 cd dashboard
@@ -216,7 +260,7 @@ Buka browser: http://localhost:5000
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 | Problem | Solusi |
 |---------|--------|
@@ -230,7 +274,7 @@ Buka browser: http://localhost:5000
 
 ---
 
-## 📂 Struktur Project
+## Struktur Project
 
 ```
 kelompok-3-ets-bigdata/
@@ -242,28 +286,35 @@ kelompok-3-ets-bigdata/
 ├── README.md
 │
 ├── kafka/
-│   ├── producer_api.py           # GitHub API → Kafka
-│   ├── producer_rss.py           # RSS Feed → Kafka
-│   └── consumer_to_hdfs.py       # Kafka → HDFS + file lokal
+│   ├── producer_api.py           # GitHub API → Kafka (interval: 60 detik)
+│   ├── producer_rss.py           # RSS Feed → Kafka (interval: 2 menit)
+│   └── consumer_to_hdfs.py       # Kafka → HDFS (WebHDFS) + file lokal
 │
 ├── spark/
-│   └── analysis.ipynb            # PySpark analysis
+│   ├── analysis.ipynb            # PySpark analysis (dengan HDFS)
+│   └── run_analysis.py           # Alternatif lokal tanpa Spark
 │
-└── dashboard/
-    ├── app.py                    # Flask server
-    ├── templates/
-    │   └── index.html
-    ├── static/
-    │   └── style.css
-    └── data/                     # (auto-generated, gitignored)
-        ├── live_api.json
-        ├── live_rss.json
-        └── spark_results.json
+├── dashboard/
+│   ├── app.py                    # Flask server
+│   ├── templates/
+│   │   └── index.html
+│   ├── static/
+│   │   └── style.css
+│   └── data/                     # (auto-generated, gitignored)
+│       ├── live_api.json
+│       ├── live_rss.json
+│       └── spark_results.json
+│
+└── tmp/                          # (auto-generated, gitignored)
+    ├── github_buffer/            # Buffer sementara consumer
+    └── spark_staging/            # Staging untuk run_analysis.py
+        ├── api/
+        └── rss/
 ```
 
 ---
 
-## 👥 Pembagian Tugas
+## Pembagian Tugas
 
 | Anggota | Peran | File |
 |---------|-------|------|
@@ -275,7 +326,7 @@ kelompok-3-ets-bigdata/
 
 ---
 
-## ⏹️ Menghentikan Semua Services
+## Menghentikan Semua Services
 
 ```bash
 # Stop producer/consumer: Ctrl+C di masing-masing terminal
