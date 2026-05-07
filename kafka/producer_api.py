@@ -27,7 +27,7 @@ load_dotenv()
 KAFKA_BOOTSTRAP_SERVERS = ['127.0.0.1:9092']
 KAFKA_TOPIC = 'github-api'
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')  # Optional, tapi disarankan
-POLLING_INTERVAL = 30 * 60  # 30 menit dalam detik
+POLLING_INTERVAL = 60  
 REPOS_PER_PAGE = 30
 
 
@@ -57,12 +57,12 @@ def fetch_trending_repos():
     Fetch repositori trending dari GitHub API.
     Mengambil repo yang dibuat kemarin dengan sort berdasarkan stars.
     """
-    # Tanggal kemarin untuk filter repo baru
-    yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+    # Tanggal 7 hari terakhir untuk filter repo trending
+    week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
     
     url = "https://api.github.com/search/repositories"
     params = {
-        'q': f'created:>{yesterday}',
+        'q': f'created:>{week_ago}',
         'sort': 'stars',
         'order': 'desc',
         'per_page': REPOS_PER_PAGE
