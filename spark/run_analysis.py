@@ -227,11 +227,13 @@ def run_spark_analysis(use_hdfs=True):
     df_top = spark.sql("""
         SELECT
             full_name,
-            COALESCE(language, 'Unknown') AS language,
-            stargazers_count,
-            forks_count,
-            SUBSTRING(COALESCE(description, ''), 1, 80) AS description_short
+            MAX(COALESCE(language, 'Unknown')) AS language,
+            MAX(stargazers_count) AS stargazers_count,
+            MAX(forks_count) AS forks_count,
+            MAX(SUBSTRING(COALESCE(description, ''), 1, 80)) AS description_short
         FROM repos
+        WHERE full_name IS NOT NULL
+        GROUP BY full_name
         ORDER BY stargazers_count DESC
         LIMIT 10
     """)
@@ -390,7 +392,17 @@ def run_fallback_analysis():
 
     # Analisis 2: Top 10
     print("⭐ Analisis 2: Top 10 Repositori...")
-    sorted_repos = sorted(api_records, key=lambda x: x.get("stargazers_count", 0), reverse=True)
+    
+    unique_repos = {}
+    for r in api_records:
+        name = r.get("full_name", "")
+        if not name:
+            continue
+        # Simpan jika belum ada, atau jika stars-nya lebih tinggi (update terbaru)
+        if name not in unique_repos or r.get("stargazers_count", 0) > unique_repos[name].get("stargazers_count", 0):
+            unique_repos[name] = r
+
+    sorted_repos = sorted(unique_repos.values(), key=lambda x: x.get("stargazers_count", 0), reverse=True)
     top10_results = [{
         "rank": i + 1,
         "full_name": r.get("full_name", ""),
