@@ -80,9 +80,9 @@ def save_to_hdfs(data: list, hdfs_path: str, topic: str):
         subprocess.run(['docker', 'exec', 'namenode', 'rm', '-f', container_tmp_file], capture_output=True)
         
         if result.returncode == 0:
-            logger.info(f"✅ Berhasil upload {len(data)} events ke HDFS: {hdfs_file}")
+            logger.info(f"Berhasil upload {len(data)} events ke HDFS: {hdfs_file}")
         else:
-            logger.error(f"❌ Gagal upload ke HDFS: {result.stderr}")
+            logger.error(f"Gagal upload ke HDFS: {result.stderr}")
             
     except subprocess.TimeoutExpired:
         logger.error("Timeout saat upload ke HDFS")
@@ -113,7 +113,7 @@ def save_live_data(data: list, local_path: str):
         with open(local_path, 'w', encoding='utf-8') as f:
             json.dump(latest, f, ensure_ascii=False, indent=2)
             
-        logger.info(f"📝 Updated {local_path} ({len(latest)} events)")
+        logger.info(f"Updated {local_path} ({len(latest)} events)")
         
     except Exception as e:
         logger.error(f"Error saving local data: {e}")
@@ -134,7 +134,7 @@ def flush_buffers():
                     save_to_hdfs(data_to_save, config['hdfs_path'], topic)
                     save_live_data(data_to_save, config['local_path'])
                     
-                    logger.info(f"🔄 Flushed {len(data_to_save)} events dari topic '{topic}'")
+                    logger.info(f"Flushed {len(data_to_save)} events dari topic '{topic}'")
 
 
 def consume_topic(topic: str):
@@ -149,7 +149,7 @@ def consume_topic(topic: str):
         consumer_timeout_ms=1000  # Timeout agar bisa di-interrupt
     )
     
-    logger.info(f"🎧 Consumer untuk topic '{topic}' dimulai")
+    logger.info(f"Consumer untuk topic '{topic}' dimulai")
     
     try:
         while True:
@@ -162,7 +162,7 @@ def consume_topic(topic: str):
                         buffers[topic].append(msg.value)
                         
                 if messages:
-                    logger.info(f"📥 Received {len(messages)} messages dari '{topic}' | Buffer size: {len(buffers[topic])}")
+                    logger.info(f"Received {len(messages)} messages dari '{topic}' | Buffer size: {len(buffers[topic])}")
                         
     except Exception as e:
         logger.error(f"Error consumer '{topic}': {e}")
@@ -172,7 +172,7 @@ def consume_topic(topic: str):
 
 def main():
     """Jalankan consumer dan buffer flusher secara paralel."""
-    logger.info("🎬 Consumer HDFS dimulai")
+    logger.info("Consumer HDFS dimulai")
     logger.info(f"Topics: {list(TOPICS.keys())}")
     logger.info(f"Buffer flush interval: {BUFFER_INTERVAL//60} menit")
     
@@ -189,7 +189,7 @@ def main():
     flush_thread.start()
     threads.append(flush_thread)
     
-    logger.info(f"✅ {len(threads)} thread berjalan")
+    logger.info(f" {len(threads)} thread berjalan")
     
     try:
         # Keep main thread alive

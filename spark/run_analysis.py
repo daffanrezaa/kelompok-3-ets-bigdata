@@ -98,14 +98,14 @@ def _load_from_hdfs(hdfs_path):
                             except json.JSONDecodeError:
                                 pass
     except Exception as e:
-        print(f"   ⚠️  docker exec gagal: {e}")
+        print(f" docker exec gagal: {e}")
     return records
 
 
 def _upload_to_hdfs_docker():
     """Upload spark_results.json ke HDFS via docker cp + hdfs dfs -put."""
     try:
-        print("📤 Upload ke HDFS via docker cp...")
+        print(" Upload ke HDFS via docker cp...")
         subprocess.run(
             ["docker", "cp", OUTPUT_JSON, "namenode:/tmp/spark_results.json"],
             check=True, capture_output=True, timeout=15
@@ -119,9 +119,9 @@ def _upload_to_hdfs_docker():
              "/tmp/spark_results.json", "/data/github/hasil/spark_results.json"],
             check=True, capture_output=True, timeout=15
         )
-        print("✅ Tersimpan ke HDFS: /data/github/hasil/spark_results.json")
+        print(" Tersimpan ke HDFS: /data/github/hasil/spark_results.json")
     except Exception as e:
-        print(f"⚠️  Upload ke HDFS gagal (Docker mungkin mati): {e}")
+        print(f" Upload ke HDFS gagal (Docker mungkin mati): {e}")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -143,7 +143,7 @@ def run_spark_analysis(use_hdfs=True):
     os.environ["PYSPARK_PYTHON"] = sys.executable
     os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
 
-    print("🔧 Inisialisasi SparkSession...")
+    print(" Inisialisasi SparkSession...")
 
     # SESUAI KETENTUAN TUGAS
     spark = SparkSession.builder \
@@ -157,10 +157,10 @@ def run_spark_analysis(use_hdfs=True):
         .getOrCreate()
 
     spark.sparkContext.setLogLevel("WARN")
-    print(f"   ✅ Spark {spark.version} ready")
+    print(f" Spark {spark.version} ready")
 
     # ── Load Data dari HDFS (Native Spark) ──
-    print("\n📂 Membaca data dari HDFS secara native (spark.read)...")
+    print("\n Membaca data dari HDFS secara native (spark.read)...")
     try:
         # Sesuai ketentuan tugas (Baca file JSON dari HDFS langsung tanpa loop)
         df_api = spark.read.option("multiLine", True).json("hdfs://namenode:8020/data/github/api/")
@@ -175,14 +175,14 @@ def run_spark_analysis(use_hdfs=True):
             total_rss = 0
             
     except Exception as e:
-        print(f"❌ Gagal membaca HDFS secara native: {e}")
+        print(f" Gagal membaca HDFS secara native: {e}")
         spark.stop()
         return False
 
-    print(f"   ✅ {total_api} API records, {total_rss} RSS records (source: HDFS Native)")
+    print(f" {total_api} API records, {total_rss} RSS records (source: HDFS Native)")
 
     if total_api == 0:
-        print("❌ Tidak ada data API. Jalankan producer + consumer dulu.")
+        print(" Tidak ada data API. Jalankan producer + consumer dulu.")
         spark.stop()
         return False
 
@@ -192,7 +192,7 @@ def run_spark_analysis(use_hdfs=True):
     # ══════════════════════════════════════════════════════════
     # ANALISIS 1: Distribusi Bahasa Pemrograman (Spark SQL)
     # ══════════════════════════════════════════════════════════
-    print("\n📊 Analisis 1: Distribusi Bahasa Pemrograman (Spark SQL)...")
+    print("\n Analisis 1: Distribusi Bahasa Pemrograman (Spark SQL)...")
 
     df_lang = spark.sql("""
         SELECT
@@ -215,14 +215,14 @@ def run_spark_analysis(use_hdfs=True):
             "avg_stars": float(row["avg_stars"]),
             "total_forks": int(row["total_forks"]),
         })
-    print(f"   ✅ {len(lang_results)} bahasa ditemukan")
+    print(f" {len(lang_results)} bahasa ditemukan")
     for r in lang_results[:5]:
         print(f"      {r['language']}: {r['repo_count']} repos ({r['percentage']}%)")
 
     # ══════════════════════════════════════════════════════════
     # ANALISIS 2: Top 10 Repositori (Spark SQL + DataFrame API)
     # ══════════════════════════════════════════════════════════
-    print("\n⭐ Analisis 2: Top 10 Repositori (Spark SQL)...")
+    print("\n Analisis 2: Top 10 Repositori (Spark SQL)...")
 
     df_top = spark.sql("""
         SELECT
@@ -248,14 +248,14 @@ def run_spark_analysis(use_hdfs=True):
             "forks_count": int(row["forks_count"]),
             "description_short": row["description_short"] or "",
         })
-    print(f"   ✅ Top {len(top10_results)} repos")
+    print(f" Top {len(top10_results)} repos")
     for r in top10_results[:3]:
-        print(f"      #{r['rank']} ⭐{r['stargazers_count']} {r['full_name']}")
+        print(f"      #{r['rank']} {r['stargazers_count']} {r['full_name']}")
 
     # ══════════════════════════════════════════════════════════
     # ANALISIS 3: Kata Trending di Deskripsi (DataFrame API)
     # ══════════════════════════════════════════════════════════
-    print("\n🔥 Analisis 3: Kata Trending (DataFrame API + explode)...")
+    print("\n Analisis 3: Kata Trending (DataFrame API + explode)...")
 
     stop_words = [
         'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
@@ -290,7 +290,7 @@ def run_spark_analysis(use_hdfs=True):
             "word": row["word"],
             "frequency": int(row["frequency"]),
         })
-    print(f"   ✅ {len(word_results)} trending words")
+    print(f" {len(word_results)} trending words")
     for r in word_results[:5]:
         print(f"      \"{r['word']}\": {r['frequency']}x")
 
@@ -313,27 +313,27 @@ def run_spark_analysis(use_hdfs=True):
     os.makedirs(os.path.dirname(OUTPUT_JSON), exist_ok=True)
     with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
         json.dump(spark_results, f, indent=2, ensure_ascii=False)
-    print(f"\n✅ Tersimpan: {OUTPUT_JSON}")
+    print(f"\n Tersimpan: {OUTPUT_JSON}")
 
     # ── Save ke HDFS (/data/github/hasil/) (Native Spark) ──
     if use_hdfs:
         try:
-            print("📥 Menyimpan hasil ke HDFS secara native (df.write)...")
+            print(" Menyimpan hasil ke HDFS secara native (df.write)...")
             from pyspark.sql.types import StringType
             result_rdd = spark.sparkContext.parallelize([json.dumps(spark_results, ensure_ascii=False)])
             result_df = spark.read.json(result_rdd)
             # Sesuai ketentuan tugas
             result_df.coalesce(1).write.mode("overwrite").json("hdfs://namenode:8020/data/github/hasil/")
-            print(f"✅ Tersimpan ke HDFS: hdfs://namenode:8020/data/github/hasil/")
+            print(f" Tersimpan ke HDFS: hdfs://namenode:8020/data/github/hasil/")
         except Exception as e:
-            print(f"⚠️  Gagal simpan ke HDFS secara native: {e}")
+            print(f" Gagal simpan ke HDFS secara native: {e}")
             print("   (Mencoba fallback via docker cp...)")
             _upload_to_hdfs_docker()
     else:
         _upload_to_hdfs_docker()
 
     spark.stop()
-    print("🔒 SparkSession stopped")
+    print(" SparkSession stopped")
     return True
 
 
