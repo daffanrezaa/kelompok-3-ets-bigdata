@@ -344,3 +344,11 @@ docker-compose -f docker-compose-hadoop.yml down
 docker-compose -f docker-compose-kafka.yml down -v
 docker-compose -f docker-compose-hadoop.yml down -v
 ```
+
+
+## Dokumentasi Hasil
+### Hasil Dashboard
+<img width="1024" height="720" alt="image" src="/assets/dashboard1.png" />
+<img width="1024" height="720" alt="image" src="/assets/dashboard2.png" />
+<img width="1024" height="720" alt="image" src="/assets/dashboard3.png" />
+<img width="1024" height="720" alt="image" src="/assets/dashboard4.png" />
