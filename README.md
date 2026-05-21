@@ -187,6 +187,8 @@ docker exec -it kafka-broker kafka-console-consumer --topic github-api --from-be
 # Baca data dari topic github-rss
 docker exec -it kafka-broker kafka-console-consumer --topic github-rss --from-beginning --bootstrap-server localhost:9092
 ```
+Berikut isi dari direktori github/hasil
+![list hasil](assets/ls-hasil.png)
 
 ### 4b. Verifikasi Data di HDFS
 
@@ -203,6 +205,10 @@ docker exec -it namenode hdfs dfs -du -h /data/github/
 # Ringkasan kapasitas cluster (total, used, available)
 docker exec -it namenode hdfs dfs -df -h /data/
 ```
+Berikut isi file hasil.
+![HDFS](assets/cat-hasil.png)
+Berikut merupakan sebagian dari isi file json data rss.
+![json HDFS](assets/json-hdfs.png)
 
 ### 4c. Verifikasi File Lokal Dashboard
 
