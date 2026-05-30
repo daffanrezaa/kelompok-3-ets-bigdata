@@ -49,5 +49,50 @@ def api_data():
         "live_rss": live_rss_data
     })
 
+# === BONUS LAKEHOUSE: Path ke Gold Delta JSON exports ===
+# Endpoint /api/gold membaca dari output 03_gold.py (lakehouse pipeline)
+# Endpoint /api/data yang lama TIDAK DIUBAH (bersifat additive)
+GOLD_JSON_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "lakehouse", "lakehouse_data", "gold_json"
+)
+
+@app.route("/api/gold")
+def gold_data():
+    """
+    Endpoint baru: membaca analisis dari Gold Delta Lake layer.
+    Fallback ke spark_results.json jika Gold belum di-generate.
+    """
+    gold_result = {}
+
+    # Coba baca dari Gold JSON exports
+    gold_files = {
+        "language_dist": "language_dist.json",
+        "top_repos": "top_repos.json",
+        "star_velocity": "star_velocity.json",
+        "emerging_topics": "emerging_topics.json",
+        "cross_source": "cross_source.json"
+    }
+
+    has_gold = False
+    for key, filename in gold_files.items():
+        filepath = os.path.join(GOLD_JSON_DIR, filename)
+        data = load_json(filepath, default_value=None)
+        if data is not None:
+            gold_result[key] = data
+            has_gold = True
+        else:
+            gold_result[key] = []
+
+    # Metadata
+    gold_result["source"] = "gold_delta" if has_gold else "not_available"
+    gold_result["message"] = (
+        "Data dari Gold Delta Lake layer"
+        if has_gold
+        else "Gold layer belum di-generate. Jalankan: python lakehouse/03_gold.py"
+    )
+
+    return jsonify(gold_result)
+
 if __name__ == "__main__":
     app.run(debug=True, host='127.0.0.1', port=5000)

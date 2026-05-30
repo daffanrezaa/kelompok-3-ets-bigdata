@@ -1,6 +1,6 @@
 # GitTrend — Monitor Repositori Open Source Populer
 
-Big Data Pipeline end-to-end: **Kafka → HDFS → Spark → Flask Dashboard**
+Big Data Pipeline end-to-end: **Kafka → HDFS → Spark → Delta Lakehouse → Flask Dashboard**
 
 ```
 GitHub API (60 detik)         TechCrunch RSS (5 menit)
@@ -19,11 +19,18 @@ GitHub API (60 detik)         TechCrunch RSS (5 menit)
         ▼                   ▼
   HDFS /data/github/   dashboard/data/
         │                   │
-        ▼                   │
-  analysis.ipynb (Spark)    │
-        │                   │
+        ├───────────────────┤
         ▼                   ▼
-  spark_results.json → Flask Dashboard :5000
+  analysis.ipynb      01_bronze.py ──→ 🥉 Bronze Delta
+  (Spark ETS)         02_silver.py ──→ 🥈 Silver Delta
+        │             03_gold.py   ──→ 🥇 Gold Delta
+        ▼                   │
+  spark_results.json   gold_json/
+        │                   │
+        └─────────┬─────────┘
+                  ▼
+        Flask Dashboard :5000
+       /api/data    /api/gold
 ```
 
 ---
@@ -34,6 +41,7 @@ GitHub API (60 detik)         TechCrunch RSS (5 menit)
 | ---------------- | --------------- |
 | Docker Desktop   | Latest          |
 | Python           | 3.9+            |
+| Java             | 8 atau 11       |
 | Git              | Latest          |
 
 ---
@@ -49,9 +57,11 @@ python -m venv venv
 .\\venv\\Scripts\\activate          # Windows PowerShell / CMD
 # source venv/bin/activate          # macOS / Linux / Git Bash
 
-# Install semua dependencies
-pip install kafka-python feedparser hdfs flask flask-cors requests python-dotenv pyspark
+# Install semua dependencies (ETS + Lakehouse)
+pip install kafka-python feedparser hdfs flask flask-cors requests python-dotenv pyspark==3.5.3 delta-spark==3.1.0
 ```
+
+> **Catatan Windows:** Jika muncul warning tentang `HADOOP_HOME` atau `winutils.exe`, ini hanya warning dan **tidak mengganggu** pipeline Delta Lake lokal. Pipeline Lakehouse berjalan di mode `local[*]` (tanpa cluster Hadoop).
 
 ---
 
@@ -220,7 +230,7 @@ dir dashboard\data\
 
 ---
 
-## Step 5 — Spark Analysis
+## Step 5 — Spark Analysis (ETS)
 
 ### Opsi A: Notebook PySpark (dengan HDFS)
 
@@ -260,7 +270,101 @@ docker exec spark-master spark-submit /opt/spark-apps/spark_analysis.py
 
 ---
 
-## Step 6 — Flask Dashboard
+## Step 6 — Data Lakehouse (Medallion Architecture)
+
+> **📦 Fitur Baru:** Pipeline Data Lakehouse dengan arsitektur Medallion (Bronze → Silver → Gold) menggunakan Delta Lake. Dokumentasi teknis lengkap tersedia di [`lakehouse/README_lakehouse.md`](lakehouse/README_lakehouse.md).
+
+### Arsitektur Medallion
+
+```
+HDFS / JSON Lokal
+       │
+       ▼
+ 🥉 Bronze Layer (01_bronze.py)
+    ├── Raw data + metadata (_ingested_at, _source)
+    └── Format: Delta Lake
+       │
+       ▼
+ 🥈 Silver Layer (02_silver.py)
+    ├── 5 transformasi API: dedup, parse timestamp, handle null, ekstrak jam, standarisasi
+    ├── 3 transformasi RSS: dedup, parse timestamp, handle null
+    ├── Schema Evolution demo (mergeSchema)
+    └── Format: Delta Lake
+       │
+       ▼
+ 🥇 Gold Layer (03_gold.py)
+    ├── Analisis 1: Distribusi Bahasa (repro ETS)
+    ├── Analisis 2: Top 10 Repo (repro ETS)
+    ├── Analisis 3: Star Velocity (baru — Window function lag())
+    ├── Analisis 4: Emerging Topics (baru — temporal keyword analysis)
+    ├── Analisis 5: Cross-Source Topics (bonus — join API ↔ RSS)
+    ├── Time Travel Demo (v0 → v1 → v2)
+    └── Export: JSON untuk dashboard
+```
+
+### Cara Menjalankan Lakehouse Pipeline
+
+Jalankan dari **root project** (`kelompok-3-ets-bigdata/`):
+
+```bash
+# Pastikan venv aktif
+.\\venv\\Scripts\\activate
+
+# 1. Bronze: Ingest data mentah → Delta
+python lakehouse/01_bronze.py
+
+# 2. Silver: Cleaning + Transformasi + Schema Evolution
+python lakehouse/02_silver.py
+
+# 3. Gold: Agregasi + Analisis + Time Travel Demo
+python lakehouse/03_gold.py
+```
+
+Setiap script akan print statistik dan hasil analisis ke terminal.
+
+### Sumber Data
+
+Pipeline mendukung **dua mode** (otomatis fallback):
+
+| Mode | Sumber | Kapan |
+|------|--------|-------|
+| **HDFS** | `hdfs://namenode:8020/data/github/api/` dan `rss/` | Docker Hadoop berjalan |
+| **Lokal** (fallback) | `dashboard/data/live_api.json` dan `live_rss.json` | HDFS tidak tersedia |
+
+### Output Lakehouse
+
+```
+lakehouse/lakehouse_data/
+├── bronze/
+│   ├── github_api/     ← Raw data + metadata
+│   └── github_rss/     ← Raw data + metadata
+├── silver/
+│   ├── github_api/     ← Cleaned + typed + schema evolved
+│   └── github_rss/     ← Cleaned + typed
+├── gold/
+│   ├── language_dist/  ← Distribusi bahasa
+│   ├── top_repos/      ← Top 10 repo
+│   ├── star_velocity/  ← Deteksi repo viral
+│   ├── emerging_topics/← Topik baru yang emerging
+│   └── cross_source/   ← Cross-source join (bonus)
+└── gold_json/          ← Export JSON untuk dashboard
+```
+
+### Fitur Lakehouse vs Pipeline ETS Lama
+
+| Fitur | ETS Lama | Lakehouse Baru |
+|-------|----------|----------------|
+| Format penyimpanan | JSON mentah di HDFS | Delta Lake (ACID, versioned) |
+| Schema | Tidak ada validasi | Enforcement + Evolution (`mergeSchema`) |
+| Versioning | ❌ Data overwrite hilang | ✅ Time Travel (akses versi lama) |
+| Audit trail | ❌ | ✅ Kolom `_ingested_at`, `_source` |
+| Star Velocity | ❌ | ✅ Window function `lag()` |
+| Emerging Topics | ❌ | ✅ Temporal keyword analysis |
+| Cross-Source | ❌ | ✅ Join API topics ↔ RSS tags |
+
+---
+
+## Step 7 — Flask Dashboard
 
 ```bash
 cd dashboard
@@ -268,6 +372,15 @@ python app.py
 ```
 
 Buka browser: http://localhost:5000
+
+### API Endpoints
+
+| Endpoint | Sumber Data | Keterangan |
+|----------|-------------|------------|
+| `/api/data` | `spark_results.json`, `live_api.json`, `live_rss.json` | Endpoint ETS (tidak diubah) |
+| `/api/gold` | `lakehouse/lakehouse_data/gold_json/*.json` | Endpoint baru untuk data Gold Lakehouse |
+
+> **Catatan:** Endpoint lama (`/api/data`) **tidak diubah sama sekali**. Endpoint `/api/gold` bersifat **additive** — menghapusnya tidak mempengaruhi dashboard yang sudah ada.
 
 ---
 
@@ -282,6 +395,10 @@ Buka browser: http://localhost:5000
 | `No module named 'kafka'` | `pip install kafka-python` |
 | `No module named 'feedparser'` | `pip install feedparser` |
 | Consumer tidak menerima data | Pastikan producer sudah mengirim data terlebih dahulu |
+| `No module named 'delta'` | `pip install delta-spark==3.1.0` |
+| `HADOOP_HOME` warning (Windows) | Abaikan — tidak mengganggu pipeline Delta Lake lokal |
+| `Java not found` / `JAVA_HOME` | Install Java 8/11 dan set `JAVA_HOME` environment variable |
+| Lakehouse HDFS fallback | Normal jika Docker Hadoop tidak jalan — otomatis baca dari file lokal |
 
 ---
 
@@ -293,8 +410,6 @@ kelompok-3-ets-bigdata/
 ├── docker-compose-hadoop.yml     # Hadoop cluster (5 container)
 ├── docker-compose-spark.yml      # Spark master + worker (alternatif)
 ├── hadoop.env                    # Konfigurasi Hadoop
-├── run.sh                        # Start semua services (Linux/Mac)
-├── stop.sh                       # Stop semua services (Linux/Mac)
 ├── .env                          # GitHub Token (tidak di-commit)
 ├── .gitignore
 ├── README.md
@@ -309,8 +424,20 @@ kelompok-3-ets-bigdata/
 │   ├── run_analysis.py           # PySpark runner (HDFS, dengan fallback)
 │   └── spark_analysis.py         # PySpark untuk Docker Spark (alternatif)
 │
+├── lakehouse/                    # 📦 NEW: Data Lakehouse Pipeline
+│   ├── 00_setup.md               # Panduan setup Spark + Delta Lake
+│   ├── 01_bronze.py              # Bronze: Ingest raw data → Delta Lake
+│   ├── 02_silver.py              # Silver: Cleaning, transformasi, schema evolution
+│   ├── 03_gold.py                # Gold: Agregasi, analisis, time travel demo
+│   ├── README_lakehouse.md       # Dokumentasi teknis lengkap Lakehouse
+│   └── lakehouse_data/           # (auto-generated, gitignored)
+│       ├── bronze/               #   Raw data + metadata
+│       ├── silver/               #   Cleaned + typed
+│       ├── gold/                 #   Aggregated Delta tables
+│       └── gold_json/            #   JSON exports untuk dashboard
+│
 ├── dashboard/
-│   ├── app.py                    # Flask server
+│   ├── app.py                    # Flask server (/api/data + /api/gold)
 │   ├── templates/
 │   │   └── index.html
 │   ├── static/
@@ -319,6 +446,8 @@ kelompok-3-ets-bigdata/
 │       ├── live_api.json
 │       ├── live_rss.json
 │       └── spark_results.json
+│
+└── assets/                       # Screenshot dokumentasi
 ```
 
 ---
@@ -330,7 +459,7 @@ kelompok-3-ets-bigdata/
 | 1 | Project Lead & Integrator | `docker-compose-*.yml`, `hadoop.env`, `README.md` |
 | 2 | Kafka Producer (API) | `kafka/producer_api.py` |
 | 3 | Kafka Producer (RSS) + Consumer | `kafka/producer_rss.py`, `kafka/consumer_to_hdfs.py` |
-| 4 | Spark Analysis | `spark/analysis.ipynb`, `spark/run_analysis.py`, `spark/spark_analysis.py` |
+| 4 | Spark Analysis + Lakehouse Pipeline | `spark/*.py`, `lakehouse/01_bronze.py`, `lakehouse/02_silver.py`, `lakehouse/03_gold.py` |
 | 5 | Flask Dashboard | `dashboard/app.py`, `dashboard/templates/index.html` |
 
 ---

@@ -10,9 +10,7 @@ import logging
 import requests
 from datetime import datetime, timedelta
 from kafka import KafkaProducer
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-import urllib.request
+
 
 try:
     from dotenv import load_dotenv

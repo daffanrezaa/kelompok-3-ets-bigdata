@@ -10,20 +10,25 @@ import threading
 import logging
 import subprocess
 import os
+import tempfile
 from datetime import datetime
 from kafka import KafkaConsumer
 
 # === KONFIGURASI ===
 KAFKA_BOOTSTRAP_SERVERS = ['localhost:9092']
 CONSUMER_GROUP = 'github-consumer-group'
+
+# Base directory (root project) — agar path konsisten terlepas dari CWD
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 TOPICS = {
     'github-api': {
         'hdfs_path': '/data/github/api',
-        'local_path': 'dashboard/data/live_api.json'
+        'local_path': os.path.join(BASE_DIR, 'dashboard', 'data', 'live_api.json')
     },
     'github-rss': {
         'hdfs_path': '/data/github/rss',
-        'local_path': 'dashboard/data/live_rss.json'
+        'local_path': os.path.join(BASE_DIR, 'dashboard', 'data', 'live_rss.json')
     }
 }
 BUFFER_INTERVAL = 2 * 60  # Flush buffer setiap 2 menit
@@ -40,8 +45,9 @@ buffers = {topic: [] for topic in TOPICS}
 buffers_lock = threading.Lock()
 
 # Pastikan folder lokal ada
-os.makedirs('dashboard/data', exist_ok=True)
-os.makedirs('/tmp/github_buffer', exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, 'dashboard', 'data'), exist_ok=True)
+BUFFER_DIR = os.path.join(tempfile.gettempdir(), 'github_buffer')
+os.makedirs(BUFFER_DIR, exist_ok=True)
 
 
 def save_to_hdfs(data: list, hdfs_path: str, topic: str):
@@ -53,7 +59,7 @@ def save_to_hdfs(data: list, hdfs_path: str, topic: str):
         return
     
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    local_file = f'/tmp/github_buffer/{topic}_{timestamp}.json'
+    local_file = os.path.join(BUFFER_DIR, f'{topic}_{timestamp}.json')
     hdfs_file = f'{hdfs_path}/{timestamp}.json'
     
     # Simpan ke file lokal sementara

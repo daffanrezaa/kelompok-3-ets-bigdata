@@ -36,9 +36,9 @@ STAGING_API = os.path.join(BASE_DIR, "tmp", "spark_staging", "api")
 STAGING_RSS = os.path.join(BASE_DIR, "tmp", "spark_staging", "rss")
 OUTPUT_JSON = os.path.join(BASE_DIR, "dashboard", "data", "spark_results.json")
 
-HDFS_API = "hdfs://localhost:8020/data/github/api/"
-HDFS_RSS = "hdfs://localhost:8020/data/github/rss/"
-HDFS_HASIL = "hdfs://localhost:8020/data/github/hasil/"
+HDFS_API = "hdfs://namenode:8020/data/github/api/"
+HDFS_RSS = "hdfs://namenode:8020/data/github/rss/"
+HDFS_HASIL = "hdfs://namenode:8020/data/github/hasil/"
 
 # ════════════════════════════════════════════════════════════════
 #  HELPER FUNCTIONS — Baca data dari HDFS / lokal

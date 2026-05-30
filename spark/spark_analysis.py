@@ -95,11 +95,13 @@ print("\n⭐ Analisis 2: Top 10 Repositori Berdasarkan Bintang (Spark SQL)...")
 df_top = spark.sql("""
     SELECT
         full_name,
-        COALESCE(language, 'Unknown') AS language,
-        stargazers_count,
-        forks_count,
-        SUBSTRING(COALESCE(description, ''), 1, 80) AS description_short
+        MAX(COALESCE(language, 'Unknown')) AS language,
+        MAX(stargazers_count) AS stargazers_count,
+        MAX(forks_count) AS forks_count,
+        MAX(SUBSTRING(COALESCE(description, ''), 1, 80)) AS description_short
     FROM repos
+    WHERE full_name IS NOT NULL
+    GROUP BY full_name
     ORDER BY stargazers_count DESC
     LIMIT 10
 """)

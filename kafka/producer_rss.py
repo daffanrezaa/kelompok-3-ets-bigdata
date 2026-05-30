@@ -7,6 +7,7 @@ import json
 import time
 import hashlib
 import logging
+import re
 from datetime import datetime
 from kafka import KafkaProducer
 import feedparser
@@ -85,7 +86,6 @@ def format_rss_event(entry, source_url: str) -> dict:
         summary = entry.description
     
     # Bersihkan HTML tags sederhana dari summary
-    import re
     clean_summary = re.sub(r'<[^>]+>', '', summary)[:500]  # Max 500 karakter
     
     return {
