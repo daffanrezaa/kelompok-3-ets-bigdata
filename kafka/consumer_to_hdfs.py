@@ -15,7 +15,10 @@ from datetime import datetime
 from kafka import KafkaConsumer
 
 # === KONFIGURASI ===
-KAFKA_BOOTSTRAP_SERVERS = ['localhost:9092']
+# Gunakan 127.0.0.1 (IPv4), BUKAN 'localhost' — di Windows 'localhost' resolve
+# ke IPv6 ::1 dulu, sedangkan broker hanya melayani IPv4 (advertised listener
+# PLAINTEXT_HOST://127.0.0.1:9092). 'localhost' menyebabkan NoBrokersAvailable.
+KAFKA_BOOTSTRAP_SERVERS = ['127.0.0.1:9092']
 CONSUMER_GROUP = 'github-consumer-group'
 
 # Base directory (root project) — agar path konsisten terlepas dari CWD

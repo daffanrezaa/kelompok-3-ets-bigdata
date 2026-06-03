@@ -2,6 +2,12 @@
 
 Big Data Pipeline end-to-end: **Kafka → HDFS → Spark → Delta Lakehouse → Flask Dashboard**
 
+> Pipeline streaming + batch yang memantau repositori GitHub trending dan berita teknologi (TechCrunch RSS), memprosesnya melewati arsitektur **Medallion (Bronze → Silver → Gold)** dengan Delta Lake, dan menyajikan hasilnya di dashboard Flask.
+
+**Tech Stack:** Apache Kafka · Apache Hadoop (HDFS) · Apache Spark (PySpark) · Delta Lake · Flask · Docker · Python 3.9+
+
+> 💡 **Resilient by design:** setiap tahap (ingest, analisis, lakehouse) mencoba HDFS terlebih dahulu lalu **otomatis fallback** ke file lokal / plain Python — jadi pipeline tetap jalan meski cluster Hadoop tidak aktif (mis. di laptop Windows).
+
 ```
 GitHub API (60 detik)         TechCrunch RSS (5 menit)
        │                              │
@@ -35,14 +41,74 @@ GitHub API (60 detik)         TechCrunch RSS (5 menit)
 
 ---
 
+## Daftar Isi
+
+- [⚡ Quick Start (TL;DR)](#-quick-start-tldr)
+- [Prasyarat](#prasyarat)
+- [Step 0 — Setup Awal](#step-0--setup-awal)
+- [Step 1 — Setup GitHub Token](#step-1--setup-github-token-opsional-disarankan)
+- [Step 2 — Jalankan Docker Containers](#step-2--jalankan-docker-containers)
+- [Step 3 — Jalankan Pipeline (3 Terminal)](#step-3--jalankan-pipeline-3-terminal)
+- [Step 4 — Verifikasi Data](#step-4--verifikasi-data)
+- [Step 5 — Spark Analysis (ETS)](#step-5--spark-analysis-ets)
+- [Step 6 — Data Lakehouse (Medallion Architecture)](#step-6--data-lakehouse-medallion-architecture)
+- [Step 7 — Flask Dashboard](#step-7--flask-dashboard)
+- [Troubleshooting](#troubleshooting)
+- [Struktur Project](#struktur-project)
+- [Pembagian Tugas](#pembagian-tugas)
+- [Menghentikan Semua Services](#menghentikan-semua-services)
+- [Dokumentasi Hasil](#dokumentasi-hasil)
+
+---
+
+## ⚡ Quick Start (TL;DR)
+
+Untuk yang sudah paham — alur lengkap dalam satu pandang (detail tiap langkah ada di section di bawah):
+
+```bash
+# 1. Setup environment
+python -m venv venv
+.\venv\Scripts\activate        # Windows  (source venv/bin/activate di macOS/Linux)
+pip install kafka-python feedparser hdfs flask flask-cors requests python-dotenv pyspark==3.5.3 delta-spark==3.1.0
+
+# 2. Infrastruktur (Docker)
+docker-compose -f docker-compose-kafka.yml up -d
+docker-compose -f docker-compose-hadoop.yml up -d
+docker exec -it namenode hdfs dfs -mkdir -p /data/github/api /data/github/rss /data/github/hasil
+docker exec -it namenode hdfs dfs -chmod -R 777 /data
+
+# 3. Pipeline ingest — 3 terminal terpisah (venv aktif, di folder kafka/)
+python producer_api.py         # Terminal 1 — GitHub API → Kafka
+python producer_rss.py         # Terminal 2 — RSS → Kafka
+python consumer_to_hdfs.py     # Terminal 3 — Kafka → HDFS + file lokal
+
+# 4. Analitik
+python spark/run_analysis.py   # ETS  : 3 analisis → dashboard/data/spark_results.json
+python lakehouse/01_bronze.py  # Lakehouse: Bronze (raw + metadata)
+python lakehouse/02_silver.py  #            Silver (cleaning + schema evolution)
+python lakehouse/03_gold.py    #            Gold   (agregasi + time travel)
+
+# 5. Dashboard
+cd dashboard && python app.py  # http://localhost:5000
+```
+
+> **Tanpa Docker?** Lewati step 2 dan jalankan producer/consumer — pipeline analitik (`run_analysis.py` & lakehouse) otomatis fallback membaca dari `dashboard/data/*.json`.
+
+---
+
 ## Prasyarat
 
 | Tool             | Versi           |
 | ---------------- | --------------- |
 | Docker Desktop   | Latest          |
-| Python           | 3.9+            |
+| Python           | **3.9 – 3.11** (hindari 3.12+ — lihat ⚠️) |
 | Java             | 8 atau 11       |
 | Git              | Latest          |
+| winutils.exe     | Hadoop 3.3.x — **wajib di Windows untuk pipeline Lakehouse/Delta** |
+
+> ⚠️ **Versi Python itu penting.** PySpark 3.5.3 hanya teruji untuk Python **3.8–3.11**. Di Python **3.12+ (terutama 3.14)**, operasi yang butuh serialisasi Python (UDF / RDD / `parallelize`) gagal dengan `RecursionError: Stack overflow` di cloudpickle — ini menggagalkan [`02_silver.py`](lakehouse/02_silver.py) (memakai UDF `parse_rfc2822`) dan langkah tulis-native di `run_analysis.py`. Untuk pipeline Lakehouse, pakai venv **Python 3.11**.
+>
+> 🪟 **Windows + Delta butuh `winutils.exe`.** Beda dari analisis ETS biasa (yang winutils-nya cuma warning), pipeline Lakehouse (Delta Lake) **wajib** `winutils.exe` + `HADOOP_HOME` di Windows. Setup ada di [Step 6 → Setup winutils.exe](#setup-winutilsexe-wajib-untuk-lakehouse-di-windows).
 
 ---
 
@@ -61,7 +127,7 @@ python -m venv venv
 pip install kafka-python feedparser hdfs flask flask-cors requests python-dotenv pyspark==3.5.3 delta-spark==3.1.0
 ```
 
-> **Catatan Windows:** Jika muncul warning tentang `HADOOP_HOME` atau `winutils.exe`, ini hanya warning dan **tidak mengganggu** pipeline Delta Lake lokal. Pipeline Lakehouse berjalan di mode `local[*]` (tanpa cluster Hadoop).
+> **Catatan Windows:** Untuk **analisis ETS** (`spark/run_analysis.py`), warning `HADOOP_HOME`/`winutils.exe` boleh **diabaikan** — Spark tetap jalan. **TAPI** untuk **pipeline Lakehouse/Delta** ([Step 6](#step-6--data-lakehouse-medallion-architecture)), `winutils.exe` **wajib** ada; tanpa itu `SparkContext` gagal init (`FileUtil.chmod` butuh winutils). Lihat [Setup winutils.exe](#setup-winutilsexe-wajib-untuk-lakehouse-di-windows). Meski mode `local[*]`, Delta tetap memakai Hadoop FileSystem lokal yang butuh winutils di Windows.
 
 ---
 
@@ -163,6 +229,8 @@ Feed https://techcrunch.com/feed/: 20 total, 20 baru
 Total 20 artikel baru dikirim ke 'github-rss'
 ```
 
+> **Catatan:** Producer membaca dua feed — `techcrunch.com/feed/` (utama) dan `tekno.kompas.com/rss/` (cadangan). Artikel dideduplikasi via hash URL (in-memory), jadi polling berikutnya hanya mengirim artikel yang benar-benar baru.
+
 ### Terminal 3 — Consumer → HDFS
 
 ```bash
@@ -255,9 +323,17 @@ python spark/run_analysis.py
 
 # Mode watch — analisis diperbarui otomatis setiap 60 detik
 python spark/run_analysis.py --watch 60
+
+# Mode lokal — baca dari tmp/spark_staging/ (tanpa HDFS/Docker)
+python spark/run_analysis.py --local
+
+# Kombinasi watch + lokal
+python spark/run_analysis.py --watch 60 --local
 ```
 
-Output: `dashboard/data/spark_results.json`
+Output: `dashboard/data/spark_results.json` (juga di-upload ke HDFS `/data/github/hasil/` bila Docker aktif).
+
+> Script mencoba PySpark native (`spark.read` dari HDFS) terlebih dahulu; jika gagal (mis. Java/Spark error di Windows) otomatis fallback ke **plain Python** yang tetap membaca HDFS via `docker exec` — atau ke staging lokal bila HDFS kosong.
 
 ### Opsi C: Docker Spark (Alternatif)
 
@@ -302,13 +378,57 @@ HDFS / JSON Lokal
     └── Export: JSON untuk dashboard
 ```
 
+### Prasyarat Khusus Lakehouse di Windows
+
+Pipeline Delta Lake punya dua prasyarat tambahan di Windows yang **tidak** dibutuhkan analisis ETS biasa:
+
+#### Setup winutils.exe (WAJIB untuk Lakehouse di Windows)
+
+Tanpa ini, `python lakehouse/01_bronze.py` langsung gagal dengan:
+`java.io.FileNotFoundException: HADOOP_HOME and hadoop.home.dir are unset` (di `Shell.getWinUtilsPath` → `FileUtil.chmod`).
+
+Penyebab: `configure_spark_with_delta_pip` mendistribusikan JAR Delta lewat `SparkContext.addFile`, yang di Windows memanggil `chmod` → butuh `winutils.exe`. Operasi tulis Delta (`_delta_log`, atomic rename) juga butuh itu.
+
+Langkah:
+
+```powershell
+# 1. Buat folder
+mkdir C:\hadoop\bin
+
+# 2. Download winutils.exe + hadoop.dll untuk Hadoop 3.3.x
+#    Sumber komunitas: https://github.com/cdarlint/winutils  (folder hadoop-3.3.6/bin)
+#    PySpark 3.5.3 membundel Hadoop 3.3.4 → binari 3.3.5/3.3.6 kompatibel.
+#    Letakkan winutils.exe DAN hadoop.dll ke C:\hadoop\bin\
+#    (salin juga hadoop.dll ke C:\Windows\System32\ untuk menghindari UnsatisfiedLinkError)
+
+# 3. Set environment variable (permanen)
+setx HADOOP_HOME "C:\hadoop"
+setx PATH "$env:PATH;C:\hadoop\bin"
+
+# 4. TUTUP & buka ulang terminal, aktifkan lagi venv, verifikasi:
+#    echo $env:HADOOP_HOME   → C:\hadoop
+#    winutils.exe ls         → tidak error
+```
+
+> Versi bundel Hadoop bisa dicek dari nama file di `venv\Lib\site-packages\pyspark\jars\hadoop-client-*.jar`.
+
+#### Gunakan Python 3.11 (bukan 3.12+)
+
+[`02_silver.py`](lakehouse/02_silver.py) memakai Python UDF (`parse_rfc2822`) yang butuh **cloudpickle**. Di Python 3.12+/3.14, cloudpickle PySpark 3.5.3 gagal `RecursionError: Stack overflow`. Buat venv khusus 3.11:
+
+```powershell
+py -3.11 -m venv venv311
+.\venv311\Scripts\activate
+pip install pyspark==3.5.3 delta-spark==3.1.0 kafka-python feedparser hdfs flask flask-cors requests python-dotenv
+```
+
 ### Cara Menjalankan Lakehouse Pipeline
 
 Jalankan dari **root project** (`kelompok-3-ets-bigdata/`):
 
 ```bash
-# Pastikan venv aktif
-.\\venv\\Scripts\\activate
+# Pastikan venv aktif (idealnya venv Python 3.11 + HADOOP_HOME sudah di-set)
+.\\venv311\\Scripts\\activate
 
 # 1. Bronze: Ingest data mentah → Delta
 python lakehouse/01_bronze.py
@@ -377,10 +497,10 @@ Buka browser: http://localhost:5000
 
 | Endpoint | Sumber Data | Keterangan |
 |----------|-------------|------------|
-| `/api/data` | `spark_results.json`, `live_api.json`, `live_rss.json` | Endpoint ETS (tidak diubah) |
-| `/api/gold` | `lakehouse/lakehouse_data/gold_json/*.json` | Endpoint baru untuk data Gold Lakehouse |
+| `/api/data` | `spark_results.json`, `live_api.json`, `live_rss.json` | Endpoint ETS — dikonsumsi UI dashboard |
+| `/api/gold` | `lakehouse/lakehouse_data/gold_json/*.json` | Endpoint baru (JSON) untuk data Gold Lakehouse |
 
-> **Catatan:** Endpoint lama (`/api/data`) **tidak diubah sama sekali**. Endpoint `/api/gold` bersifat **additive** — menghapusnya tidak mempengaruhi dashboard yang sudah ada.
+> **Catatan:** Endpoint lama (`/api/data`) **tidak diubah sama sekali** dan menjadi sumber data UI dashboard. Endpoint `/api/gold` bersifat **additive** — saat ini disajikan sebagai JSON API (mis. diakses via browser/`curl http://localhost:5000/api/gold`) dan belum dirender di UI default; menghapusnya tidak mempengaruhi dashboard yang sudah ada. Jika Gold belum di-generate, endpoint mengembalikan pesan untuk menjalankan `python lakehouse/03_gold.py`.
 
 ---
 
@@ -388,15 +508,18 @@ Buka browser: http://localhost:5000
 
 | Problem | Solusi |
 |---------|--------|
-| `NoBrokersAvailable` | Pastikan Kafka container running: `docker ps` |
-| IPv6 connection timeout | Sudah difix — semua config menggunakan `127.0.0.1` |
+| `NoBrokersAvailable` | (1) Pastikan Kafka container running: `docker ps`. (2) Jika container **sudah** running tapi tetap error dengan log `connecting to localhost:9092 [('::1', ...) IPv6]`, berarti `localhost` resolve ke IPv6 `::1` yang tidak dilayani broker — gunakan `127.0.0.1:9092` (bukan `localhost`) di config bootstrap. |
+| IPv6 connection timeout | Semua client memakai `127.0.0.1` (IPv4), bukan `localhost`. Broker hanya meng-advertise `PLAINTEXT_HOST://127.0.0.1:9092`. |
 | `Rate limit tercapai` | Tambahkan GitHub Token di file `.env` |
 | HDFS upload gagal | Pastikan Hadoop containers running dan HDFS dirs sudah dibuat |
 | `No module named 'kafka'` | `pip install kafka-python` |
 | `No module named 'feedparser'` | `pip install feedparser` |
 | Consumer tidak menerima data | Pastikan producer sudah mengirim data terlebih dahulu |
 | `No module named 'delta'` | `pip install delta-spark==3.1.0` |
-| `HADOOP_HOME` warning (Windows) | Abaikan — tidak mengganggu pipeline Delta Lake lokal |
+| `HADOOP_HOME` warning di `run_analysis.py` | Abaikan — analisis ETS tetap jalan tanpa winutils |
+| `HADOOP_HOME and hadoop.home.dir are unset` (FATAL, di lakehouse) | Delta di Windows **wajib** `winutils.exe`. Install + set `HADOOP_HOME` → [Setup winutils.exe](#setup-winutilsexe-wajib-untuk-lakehouse-di-windows) |
+| `RecursionError: Stack overflow` / `Could not serialize object` | Python 3.12+ tidak kompatibel dengan cloudpickle PySpark 3.5.3. Pakai venv **Python 3.11** (memengaruhi `02_silver.py` & tulis-native `run_analysis.py`) |
+| `UnknownHostException: namenode` (PySpark baca HDFS dari host) | Hostname Docker tidak resolve dari Windows. Tambahkan `127.0.0.1 namenode` & `127.0.0.1 datanode` di `C:\Windows\System32\drivers\etc\hosts`, atau biarkan fallback `docker exec` |
 | `Java not found` / `JAVA_HOME` | Install Java 8/11 dan set `JAVA_HOME` environment variable |
 | Lakehouse HDFS fallback | Normal jika Docker Hadoop tidak jalan — otomatis baca dari file lokal |
 
@@ -483,7 +606,7 @@ docker-compose -f docker-compose-hadoop.yml down -v
 
 ## Dokumentasi Hasil
 ### Hasil Dashboard
-<img width="1024" height="720" alt="image" src="/assets/dashboard1.png" />
-<img width="1024" height="720" alt="image" src="/assets/dashboard2.png" />
-<img width="1024" height="720" alt="image" src="/assets/dashboard3.png" />
-<img width="1024" height="720" alt="image" src="/assets/dashboard4.png" />
+<img width="1024" height="720" alt="dashboard 1" src="assets/dashboard1.png" />
+<img width="1024" height="720" alt="dashboard 2" src="assets/dashboard2.png" />
+<img width="1024" height="720" alt="dashboard 3" src="assets/dashboard3.png" />
+<img width="1024" height="720" alt="dashboard 4" src="assets/dashboard4.png" />

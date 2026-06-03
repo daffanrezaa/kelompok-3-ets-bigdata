@@ -4,9 +4,10 @@
 
 | Software | Versi | Cek |
 |----------|-------|-----|
-| Python | 3.9+ | `python --version` |
+| Python | **3.9 – 3.11** (bukan 3.12+) | `python --version` |
 | Java | 8 atau 11 | `java -version` |
 | PySpark | 3.5.x | `pip show pyspark` |
+| winutils.exe | Hadoop 3.3.x (**wajib di Windows**) | `winutils.exe ls` |
 
 ## Instalasi
 
@@ -15,9 +16,16 @@
 pip install pyspark==3.5.3 delta-spark==3.1.0
 ```
 
-> **Catatan Windows:** Jika muncul warning tentang `HADOOP_HOME` atau `winutils.exe`,
-> ini hanya warning dan **tidak mengganggu** pipeline Delta Lake lokal.
-> Pipeline ini berjalan di mode `local[*]` (tanpa cluster Hadoop).
+> ⚠️ **Python harus 3.9–3.11.** PySpark 3.5.3 belum kompatibel dengan Python 3.12+/3.14.
+> UDF di `02_silver.py` (cloudpickle) akan gagal `RecursionError: Stack overflow`.
+> Buat venv khusus: `py -3.11 -m venv venv311`.
+
+> 🪟 **Windows WAJIB winutils.exe.** Untuk pipeline Delta, warning `HADOOP_HOME`/`winutils.exe`
+> **bukan** sekadar warning — `SparkContext` gagal init (`FileUtil.chmod` butuh winutils).
+> Download `winutils.exe` + `hadoop.dll` untuk Hadoop 3.3.x (mis. github.com/cdarlint/winutils
+> `hadoop-3.3.6/bin`) ke `C:\hadoop\bin\`, lalu `setx HADOOP_HOME "C:\hadoop"` dan tambahkan
+> `C:\hadoop\bin` ke `PATH`. Salin juga `hadoop.dll` ke `C:\Windows\System32\`.
+> (Hanya analisis ETS `run_analysis.py` yang aman mengabaikan warning ini.)
 
 ## Cara Menjalankan
 
