@@ -1,0 +1,72 @@
+[
+  {
+    "language": "Python",
+    "repo_count": 12.0,
+    "avg_stars": 430.4,
+    "total_forks": 1235.0,
+    "percentage": 40.0
+  },
+  {
+    "language": "TypeScript",
+    "repo_count": 7.0,
+    "avg_stars": 605.9,
+    "total_forks": 682.0,
+    "percentage": 23.3
+  },
+  {
+    "language": "Unknown",
+    "repo_count": 3.0,
+    "avg_stars": 441.0,
+    "total_forks": 180.0,
+    "percentage": 10.0
+  },
+  {
+    "language": "Rust",
+    "repo_count": 2.0,
+    "avg_stars": 933.5,
+    "total_forks": 401.0,
+    "percentage": 6.7
+  },
+  {
+    "language": "JavaScript",
+    "repo_count": 1.0,
+    "avg_stars": 41675.0,
+    "total_forks": 4849.0,
+    "percentage": 3.3
+  },
+  {
+    "language": "C++",
+    "repo_count": 1.0,
+    "avg_stars": 339.0,
+    "total_forks": 27.0,
+    "percentage": 3.3
+  },
+  {
+    "language": "Swift",
+    "repo_count": 1.0,
+    "avg_stars": 230.0,
+    "total_forks": 9.0,
+    "percentage": 3.3
+  },
+  {
+    "language": "HTML",
+    "repo_count": 1.0,
+    "avg_stars": 227.0,
+    "total_forks": 0.0,
+    "percentage": 3.3
+  },
+  {
+    "language": "PHP",
+    "repo_count": 1.0,
+    "avg_stars": 227.0,
+    "total_forks": 5.0,
+    "percentage": 3.3
+  },
+  {
+    "language": "Shell",
+    "repo_count": 1.0,
+    "avg_stars": 333.0,
+    "total_forks": 9.0,
+    "percentage": 3.3
+  }
+]

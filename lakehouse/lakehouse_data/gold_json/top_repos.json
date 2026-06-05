@@ -1,0 +1,82 @@
+[
+  {
+    "full_name": "pewdiepie-archdaemon/odysseus",
+    "language": "JavaScript",
+    "stargazers_count": 41688.0,
+    "forks_count": 4849.0,
+    "description": "Self-hosted AI workspace.",
+    "rank": 1.0
+  },
+  {
+    "full_name": "Gloridust/WechatOnCloud",
+    "language": "TypeScript",
+    "stargazers_count": 1900.0,
+    "forks_count": 530.0,
+    "description": "\u4e91\u5faeWOC\uff0c\u4e91\u5fae\u4fe1\uff0c\u81ea\u7531\u8fde\u63a5",
+    "rank": 2.0
+  },
+  {
+    "full_name": "b-nnett/goose",
+    "language": "Rust",
+    "stargazers_count": 1381.0,
+    "forks_count": 395.0,
+    "description": "Goose Swift proof-of-concept README",
+    "rank": 3.0
+  },
+  {
+    "full_name": "asz798838958/aBaiAutoplus",
+    "language": "Python",
+    "stargazers_count": 1361.0,
+    "forks_count": 644.0,
+    "description": "\u591a\u5e73\u53f0 AI \u8d26\u53f7\u81ea\u52a8\u6ce8\u518c\u4e0e\u7ba1\u7406 \u00b7 \u534f\u8bae\u5316\u4ed8\u6b3e\u4e00\u952e\u5f00\u901a ChatGPT Plus",
+    "rank": 4.0
+  },
+  {
+    "full_name": "ClaudioDrews/memory-os",
+    "language": "Python",
+    "stargazers_count": 732.0,
+    "forks_count": 71.0,
+    "description": "A 7-layer memory operating system for Hermes Agent \u2014 persistent memory with Qdrant, structured facts, fabric recall, auto-curated wiki, and surgical context injection. Runs locally, any LLM provider.",
+    "rank": 5.0
+  },
+  {
+    "full_name": "cpaczek/skylight",
+    "language": "TypeScript",
+    "stargazers_count": 590.0,
+    "forks_count": 31.0,
+    "description": "Project the aircraft passing overhead onto your ceiling in real time, from an RTL-SDR \u2014 with a live sky layer (sun, moon, stars, ISS) and where each plane is headed.",
+    "rank": 6.0
+  },
+  {
+    "full_name": "zgwl/chinese-buy-us-stock-guide",
+    "language": "Unknown",
+    "stargazers_count": 561.0,
+    "forks_count": 106.0,
+    "description": "\u7f8e\u80a1\u6307\u5357",
+    "rank": 7.0
+  },
+  {
+    "full_name": "SenhorH/tab-labeler",
+    "language": "TypeScript",
+    "stargazers_count": 519.0,
+    "forks_count": 37.0,
+    "description": "Rename browser tabs locally and bring order to chaotic sessions.",
+    "rank": 8.0
+  },
+  {
+    "full_name": "qiuqiubuchongle-cloud/chokepoint-atlas",
+    "language": "Python",
+    "stargazers_count": 510.0,
+    "forks_count": 113.0,
+    "description": "",
+    "rank": 9.0
+  },
+  {
+    "full_name": "liyue-aigc/female-portrait-director",
+    "language": "Unknown",
+    "stargazers_count": 503.0,
+    "forks_count": 74.0,
+    "description": "A modular Codex Skill for directing and expanding detailed AI female portrait prompts.",
+    "rank": 10.0
+  }
+]

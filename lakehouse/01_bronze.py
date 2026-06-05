@@ -48,7 +48,8 @@ try:
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
         .config("spark.driver.host", "127.0.0.1") \
-        .config("spark.driver.bindAddress", "127.0.0.1")
+        .config("spark.driver.bindAddress", "127.0.0.1") \
+        .config("spark.hadoop.dfs.client.use.datanode.hostname", "true")
     spark = configure_spark_with_delta_pip(builder).getOrCreate()
 except ImportError:
     print("\n⚠️  delta-spark tidak ditemukan, menggunakan spark.jars.packages")
@@ -60,6 +61,7 @@ except ImportError:
         .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.1.0") \
         .config("spark.driver.host", "127.0.0.1") \
         .config("spark.driver.bindAddress", "127.0.0.1") \
+        .config("spark.hadoop.dfs.client.use.datanode.hostname", "true") \
         .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
